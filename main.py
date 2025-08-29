@@ -481,6 +481,7 @@ def is_notion_configured():
 def add_book_to_notion(book_data):
     """Add book to Notion database"""
     if not is_notion_configured():
+        logger.error("Notion not configured")
         return None
     
     try:
@@ -491,52 +492,52 @@ def add_book_to_notion(book_data):
             "Notion-Version": "2022-06-28"
         }
         
+        # Start with minimal properties first
         properties = {
             "BookName": {"title": [{"text": {"content": book_data['title']}}]},
             "ISBN": {"rich_text": [{"text": {"content": book_data['isbn']}}]},
-            "Status": {"select": {"name": "New"}},
-            "Author": {"rich_text": [{"text": {"content": book_data['author']}}]},
-            "Publisher": {"rich_text": [{"text": {"content": book_data.get('publisher', '')}}]},
-            "Descriptions": {"rich_text": [{"text": {"content": book_data.get('description', '')}}]},
-            "Category": {"rich_text": [{"text": {"content": book_data.get('categories', '')}}]},
-            "ReadStatus": {"select": {"name": "Want to Read"}},
-            "StartDate": {"date": None},
-            "FinishDate": {"date": None},
-            "Favorite": {"checkbox": False},
-            "Currentpage": {"number": 0},
-            "PublishPlace": {"rich_text": [{"text": {"content": ""}}]},
-            "Language": {"rich_text": [{"text": {"content": book_data.get('language', 'en')}}]},
-            "MyRate": {"number": None},
-            "AMZ-CoverImage": {"rich_text": [{"text": {"content": ""}}]},
-            "My Progress": {"number": 0},
-            "ReadLog": {"rich_text": [{"text": {"content": ""}}]}
+            "Author": {"rich_text": [{"text": {"content": book_data['author']}}]}
         }
         
-        # Add optional fields
-        if book_data.get('published_date'):
-            parsed_date = parse_date(book_data['published_date'])
-            if parsed_date:
-                properties["Published Date"] = {"date": {"start": parsed_date}}
-            else:
-                properties["Published Date"] = {"rich_text": [{"text": {"content": book_data['published_date']}}]}
+        # Only add Status if you have it as a Select field with "New" option
+        try:
+            properties["Status"] = {"select": {"name": "New"}}
+        except:
+            logger.warning("Status field not added - may not exist or have 'New' option")
         
-        if book_data.get('page_count'):
-            properties["Page Count"] = {"number": book_data['page_count']}
-        
-        if book_data.get('cover_image'):
-            properties["Cover image"] = {"url": book_data['cover_image']}
+        # Only add ReadStatus if you have it as a Select field with "Want to Read" option  
+        try:
+            properties["ReadStatus"] = {"select": {"name": "Want to Read"}}
+        except:
+            logger.warning("ReadStatus field not added - may not exist or have 'Want to Read' option")
         
         payload = {
             "parent": {"database_id": NOTION_DATABASE_ID},
             "properties": properties
         }
         
+        logger.info(f"Attempting to create page with payload: {json.dumps(payload, indent=2)}")
+        logger.info(f"Using database ID: {NOTION_DATABASE_ID}")
+        logger.info(f"Using token starting with: {NOTION_TOKEN[:10]}...")
+        
         response = requests.post(url, headers=headers, json=payload, timeout=15)
+        
+        logger.info(f"Response status code: {response.status_code}")
+        logger.info(f"Response headers: {dict(response.headers)}")
+        
+        if response.status_code != 200:
+            logger.error(f"Response content: {response.text}")
+            
         response.raise_for_status()
         
-        logger.info(f"Added to Notion: {book_data['title']}")
+        logger.info(f"Successfully added to Notion: {book_data['title']}")
         return response.json()
         
+    except requests.exceptions.HTTPError as e:
+        logger.error(f"HTTP Error: {e}")
+        logger.error(f"Response status: {e.response.status_code}")
+        logger.error(f"Response content: {e.response.text}")
+        return None
     except Exception as e:
         logger.error(f"Notion error: {str(e)}")
         return None
