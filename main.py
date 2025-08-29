@@ -277,7 +277,7 @@ HTML_TEMPLATE = '''
                 const result = await response.json();
                 
                 if (result.success) {
-                    showBookResult(result);
+                    showBookPreview(result);
                 } else {
                     showResult('❌ Error: ' + result.error, 'error');
                 }
