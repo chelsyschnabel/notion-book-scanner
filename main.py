@@ -171,6 +171,7 @@ HTML_TEMPLATE = '''
             <input type="text" id="isbn" placeholder="Enter ISBN or scan barcode below">
             <button onclick="scanBarcode()" class="scan-button">📷 Scan Barcode with Camera</button>
             <button onclick="lookupBook()" class="test-button">🔍 Look Up Book Details</button>
+            <button onclick="addToNotion()" class="test-button" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">📚 Add to Notion Library</button>
         </div>
 
         <!-- Barcode Scanner -->
@@ -295,15 +296,73 @@ HTML_TEMPLATE = '''
             results.innerHTML = `<div class="status ${type}">${message}</div>`;
         }
 
-        function showBookResult(book) {
+        async function addToNotion() {
+            const isbn = document.getElementById('isbn').value.trim();
+            if (!isbn) {
+                showResult('❌ Please enter an ISBN or scan a barcode first', 'error');
+                return;
+            }
+
+            if (!isValidISBN(isbn)) {
+                showResult('❌ Invalid ISBN format. Please enter 10 or 13 digits.', 'error');
+                return;
+            }
+
+            showResult('📚 Adding book to your Notion library...', 'loading');
+            
+            try {
+                const response = await fetch('/test-isbn', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        isbn: isbn,
+                        save_to_notion: true
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    if (result.saved_to_notion) {
+                        showBookResultWithNotion(result, true);
+                    } else if (result.notion_error) {
+                        showBookResultWithNotion(result, false, result.notion_error);
+                    } else {
+                        showResult('❌ Notion is not configured. Please set up your integration tokens.', 'error');
+                    }
+                } else {
+                    showResult('❌ Error: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showResult('❌ Network error: ' + error.message, 'error');
+            }
+        }
+
+        function showBookResultWithNotion(book, saved, error = null) {
             const results = document.getElementById('results');
             const coverImg = book.cover_image ? 
                 `<img src="${book.cover_image}" alt="Book cover" class="book-cover" onerror="this.style.display='none'">` : 
                 '<div class="book-cover" style="background: #ddd; display: flex; align-items: center; justify-content: center; color: #666; font-size: 12px;">No Cover</div>';
             
+            let statusMessage = '';
+            let statusClass = '';
+            
+            if (saved) {
+                statusMessage = '✅ Successfully added to your Notion library!';
+                statusClass = 'success';
+            } else if (error) {
+                statusMessage = `❌ Found book but failed to save to Notion: ${error}`;
+                statusClass = 'error';
+            } else {
+                statusMessage = '⚠️ Book found but Notion is not configured';
+                statusClass = 'error';
+            }
+            
             results.innerHTML = `
-                <div class="status success">
-                    <strong>✅ Book found!</strong>
+                <div class="status ${statusClass}">
+                    <strong>${statusMessage}</strong>
                     <div class="book-preview">
                         ${coverImg}
                         <div class="book-info">
@@ -315,7 +374,7 @@ HTML_TEMPLATE = '''
                             ${book.page_count ? `<p><strong>Pages:</strong> ${book.page_count}</p>` : ''}
                         </div>
                     </div>
-                    <em>📝 Ready to add Notion integration next!</em>
+                    ${saved ? '<em>🎉 Check your Notion database to see the book!</em>' : ''}
                 </div>
             `;
         }
@@ -339,10 +398,11 @@ def home():
 
 @app.route('/test-isbn', methods=['POST'])
 def test_isbn():
-    """Test Google Books API and return detailed book info"""
+    """Test Google Books API and optionally save to Notion"""
     try:
         data = request.get_json()
         isbn = data.get('isbn', '').strip()
+        save_to_notion = data.get('save_to_notion', False)
         
         if not isbn:
             return jsonify({'success': False, 'error': 'ISBN required'})
@@ -377,7 +437,8 @@ def test_isbn():
             'categories': ', '.join(book_info.get('categories', [])),
             'description': book_info.get('description', '')[:200] + '...' if book_info.get('description', '') else '',
             'language': book_info.get('language', 'en'),
-            'cover_image': None
+            'cover_image': None,
+            'saved_to_notion': False
         }
         
         # Get cover image
@@ -390,6 +451,15 @@ def test_isbn():
                 image_links.get('thumbnail')
             )
         
+        # Save to Notion if requested and configured
+        if save_to_notion and is_notion_configured():
+            notion_result = add_book_to_notion(book_data)
+            if notion_result:
+                book_data['saved_to_notion'] = True
+                book_data['notion_id'] = notion_result.get('id')
+            else:
+                book_data['notion_error'] = 'Failed to save to Notion'
+        
         return jsonify(book_data)
         
     except requests.exceptions.RequestException as e:
@@ -398,6 +468,168 @@ def test_isbn():
     except Exception as e:
         logger.error(f"Error testing ISBN: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
+
+def is_notion_configured():
+    """Check if Notion is properly configured"""
+    return (NOTION_TOKEN and NOTION_TOKEN not in ['', 'dummy_token'] and 
+            NOTION_DATABASE_ID and NOTION_DATABASE_ID not in ['', 'dummy_database_id'])
+
+def add_book_to_notion(book_data):
+    """Add book to Notion database with all specified columns"""
+    if not is_notion_configured():
+        logger.error("Notion not configured")
+        return None
+    
+    try:
+        url = "https://api.notion.com/v1/pages"
+        
+        headers = {
+            "Authorization": f"Bearer {NOTION_TOKEN}",
+            "Content-Type": "application/json",
+            "Notion-Version": "2022-06-28"
+        }
+        
+        # Build properties for all specified columns
+        properties = {
+            # BookName (using Title property type)
+            "BookName": {
+                "title": [{"text": {"content": book_data['title']}}]
+            },
+            
+            # ISBN
+            "ISBN": {
+                "rich_text": [{"text": {"content": book_data['isbn']}}]
+            },
+            
+            # Status (default to "New")
+            "Status": {
+                "select": {"name": "New"}
+            },
+            
+            # Author
+            "Author": {
+                "rich_text": [{"text": {"content": book_data['author']}}]
+            },
+            
+            # Publisher
+            "Publisher": {
+                "rich_text": [{"text": {"content": book_data.get('publisher', '')}}]
+            },
+            
+            # Descriptions
+            "Descriptions": {
+                "rich_text": [{"text": {"content": book_data.get('description', '')}}]
+            },
+            
+            # Category
+            "Category": {
+                "rich_text": [{"text": {"content": book_data.get('categories', '')}}]
+            },
+            
+            # ReadStatus (default to "Want to Read")
+            "ReadStatus": {
+                "select": {"name": "Want to Read"}
+            },
+            
+            # StartDate (empty)
+            "StartDate": {"date": None},
+            
+            # FinishDate (empty) 
+            "FinishDate": {"date": None},
+            
+            # Favorite (default to false)
+            "Favorite": {"checkbox": False},
+            
+            # Currentpage (default to 0)
+            "Currentpage": {"number": 0},
+            
+            # PublishPlace (usually not available from Google Books)
+            "PublishPlace": {
+                "rich_text": [{"text": {"content": ""}}]
+            },
+            
+            # Language
+            "Language": {
+                "rich_text": [{"text": {"content": book_data.get('language', 'en')}}]
+            },
+            
+            # MyRate (empty - user will fill)
+            "MyRate": {"number": None},
+            
+            # AMZ-CoverImage (empty)
+            "AMZ-CoverImage": {
+                "rich_text": [{"text": {"content": ""}}]
+            },
+            
+            # My Progress (default to 0)
+            "My Progress": {"number": 0},
+            
+            # ReadLog (empty)
+            "ReadLog": {
+                "rich_text": [{"text": {"content": ""}}]
+            }
+        }
+        
+        # Add conditional fields
+        
+        # Published Date
+        if book_data.get('published_date'):
+            parsed_date = parse_date(book_data['published_date'])
+            if parsed_date:
+                properties["Published Date"] = {"date": {"start": parsed_date}}
+            else:
+                properties["Published Date"] = {"rich_text": [{"text": {"content": book_data['published_date']}}]}
+        else:
+            properties["Published Date"] = {"rich_text": [{"text": {"content": ""}}]}
+        
+        # Page Count
+        if book_data.get('page_count'):
+            properties["Page Count"] = {"number": book_data['page_count']}
+        else:
+            properties["Page Count"] = {"number": None}
+        
+        # Cover image
+        if book_data.get('cover_image'):
+            properties["Cover image"] = {"url": book_data['cover_image']}
+        else:
+            properties["Cover image"] = {"rich_text": [{"text": {"content": ""}}]}
+        
+        payload = {
+            "parent": {"database_id": NOTION_DATABASE_ID},
+            "properties": properties
+        }
+        
+        response = requests.post(url, headers=headers, json=payload, timeout=15)
+        response.raise_for_status()
+        
+        logger.info(f"Successfully added book to Notion: {book_data['title']}")
+        return response.json()
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Error adding book to Notion: {str(e)}")
+        if hasattr(e, 'response') and e.response is not None:
+            logger.error(f"Response content: {e.response.text}")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error adding book to Notion: {str(e)}")
+        return None
+
+def parse_date(date_string):
+    """Parse various date formats from Google Books API"""
+    try:
+        from datetime import datetime
+        formats = ['%Y-%m-%d', '%Y-%m', '%Y']
+        
+        for fmt in formats:
+            try:
+                date_obj = datetime.strptime(date_string, fmt)
+                return date_obj.strftime('%Y-%m-%d')
+            except ValueError:
+                continue
+        
+        return None
+    except Exception:
+        return None
 
 @app.route('/health')
 def health_check():
