@@ -514,9 +514,18 @@ def add_book_to_notion(book_data):
         if book_data.get('categories'):
             properties["Category"] = {"rich_text": [{"text": {"content": book_data['categories']}}]}
         
-        # Test Language next
-        if book_data.get('language'):
-            properties["Language"] = {"rich_text": [{"text": {"content": book_data['language']}}]}
+        # Add reading management columns with default values
+        # Status (default to "New")
+        properties["Status"] = {"select": {"name": "New"}}
+        
+        # ReadStatus (default to "Want to Read") 
+        properties["ReadStatus"] = {"select": {"name": "Want to Read"}}
+        
+        # Favorite (default to false)
+        properties["Favorite"] = {"checkbox": False}
+        
+        # MyRate (empty by default)
+        properties["MyRate"] = {"number": None}
         
         payload = {
             "parent": {"database_id": NOTION_DATABASE_ID},
