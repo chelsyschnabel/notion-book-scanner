@@ -514,6 +514,10 @@ def add_book_to_notion(book_data):
         if book_data.get('categories'):
             properties["Category"] = {"rich_text": [{"text": {"content": book_data['categories']}}]}
         
+        # Test Language next
+        if book_data.get('language'):
+            properties["Language"] = {"rich_text": [{"text": {"content": book_data['language']}}]}
+        
         payload = {
             "parent": {"database_id": NOTION_DATABASE_ID},
             "properties": properties
