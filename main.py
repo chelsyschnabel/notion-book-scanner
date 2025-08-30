@@ -1201,6 +1201,44 @@ def is_notion_configured():
     return (NOTION_TOKEN and NOTION_TOKEN not in ['', 'dummy_token'] and 
             NOTION_DATABASE_ID and NOTION_DATABASE_ID not in ['', 'dummy_database_id'])
 
+def validate_and_optimize_image_url(url):
+    """Validate and optimize image URL for Notion compatibility"""
+    if not url:
+        return None
+        
+    try:
+        # Convert HTTP to HTTPS
+        if url.startswith('http://'):
+            url = url.replace('http://', 'https://')
+        
+        # Optimize Google Books URLs
+        if 'books.google.com' in url:
+            # Request higher resolution
+            url = url.replace('zoom=1', 'zoom=0')
+            # Remove problematic parameters
+            url = url.replace('&edge=curl', '').replace('?edge=curl', '')
+            # Ensure we get the direct image
+            if '&img=1' not in url:
+                url += '&img=1'
+        
+        # Test URL accessibility (with timeout)
+        response = requests.head(url, timeout=5, allow_redirects=True)
+        if response.status_code == 200:
+            # Check if it's actually an image
+            content_type = response.headers.get('content-type', '').lower()
+            if any(img_type in content_type for img_type in ['image/', 'jpeg', 'jpg', 'png', 'gif']):
+                logger.info(f"Image URL validated successfully: {url}")
+                return url
+            else:
+                logger.warning(f"URL does not return an image: {content_type}")
+        else:
+            logger.warning(f"Image URL returned status {response.status_code}: {url}")
+            
+    except Exception as e:
+        logger.warning(f"Failed to validate image URL {url}: {str(e)}")
+    
+    return None
+
 def add_book_to_notion(book_data):
     """Add book to Notion database - working version with all columns"""
     if not is_notion_configured():
@@ -1232,22 +1270,34 @@ def add_book_to_notion(book_data):
         
         # Add Cover images (both URL and Files & media types)
         if book_data.get('cover_image'):
-            # Original Cover image as URL type
-            properties["Cover image"] = {"url": book_data['cover_image']}
+            # Validate and optimize the image URL
+            validated_url = validate_and_optimize_image_url(book_data['cover_image'])
             
-            # New Cover PNG as Files & media type
-            properties["Cover PNG"] = {
-                "files": [
-                    {
-                        "name": f"{book_data['title']}_cover.png",
-                        "type": "external",
-                        "external": {
-                            "url": book_data['cover_image']
+            if validated_url:
+                # Original Cover image as URL type
+                properties["Cover image"] = {"url": validated_url}
+                
+                # Create a clean filename
+                clean_title = "".join(c for c in book_data['title'] if c.isalnum() or c in (' ', '-', '_')).rstrip()
+                filename = f"{clean_title}_cover.jpg"
+                
+                # New Cover PNG as Files & media type with validated URL
+                properties["Cover PNG"] = {
+                    "files": [
+                        {
+                            "name": filename,
+                            "type": "external",
+                            "external": {
+                                "url": validated_url
+                            }
                         }
-                    }
-                ]
-            }
-        
+                    ]
+                }
+                
+                logger.info(f"Added validated cover image: {validated_url}")
+                logger.info(f"Cover filename: {filename}")
+            else:
+                logger.warning("Could not validate cover image URL, skipping cover images")
         # Add Published Date (automatic)
         if book_data.get('published_date'):
             parsed_date = parse_date(book_data['published_date'])
@@ -1305,6 +1355,29 @@ def parse_date(date_string):
         return None
     except Exception:
         return None
+
+@app.route('/test-image-url', methods=['POST'])
+def test_image_url():
+    """Test if an image URL is accessible for debugging"""
+    try:
+        data = request.get_json()
+        url = data.get('url')
+        
+        if not url:
+            return jsonify({'success': False, 'error': 'URL required'})
+        
+        validated_url = validate_and_optimize_image_url(url)
+        
+        return jsonify({
+            'success': bool(validated_url),
+            'original_url': url,
+            'validated_url': validated_url,
+            'message': 'Image URL is accessible' if validated_url else 'Image URL is not accessible'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error testing image URL: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/health')
 def health_check():
