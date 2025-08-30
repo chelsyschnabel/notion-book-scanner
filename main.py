@@ -1,4 +1,27 @@
-import os
+@app.route('/add-manual-book', methods=['POST'])
+def add_manual_book():
+    """Add a manually entered book directly to Notion"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        if not data.get('title') or not data.get('author'):
+            return jsonify({'success': False, 'error': 'Title and Author are required'})
+        
+        # Check if Notion is configured
+        if not is_notion_configured():
+            return jsonify({'success': False, 'error': 'Notion is not configured. Please check your environment variables.'})
+        
+        # Create book data structure
+        book_data = {
+            'title': data.get('title', '').strip(),
+            'author': data.get('author', '').strip(),
+            'isbn': data.get('isbn', '').strip() or 'Manual Entry',
+            'publisher': data.get('publisher', '').strip(),
+            'published_date': data.get('published_date', '').strip(),
+            'page_count': data.get('page_count'),
+            'categories': data.get('categories', '').strip(),
+            'description': dataimport os
 import json
 import logging
 import requests
@@ -543,6 +566,75 @@ HTML_TEMPLATE = '''
             </div>
         </div>
 
+        <!-- Manual Book Entry Form -->
+        <div id="manual-book-form" style="display: none;">
+            <div class="scanner-header">
+                <button class="back-button" onclick="hideManualBookForm()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="m12 19-7-7 7-7"></path>
+                        <path d="M19 12H5"></path>
+                    </svg>
+                </button>
+                <h2 class="scanner-title">Add Book Manually</h2>
+            </div>
+
+            <div class="card">
+                <div class="card-content">
+                    <div class="input-group">
+                        <label for="manual-title">Book Title *</label>
+                        <input type="text" id="manual-title" placeholder="Enter book title" required>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="manual-author">Author *</label>
+                        <input type="text" id="manual-author" placeholder="Enter author name" required>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="manual-isbn">ISBN (Optional)</label>
+                        <input type="text" id="manual-isbn" placeholder="Enter ISBN if available">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="manual-publisher">Publisher</label>
+                        <input type="text" id="manual-publisher" placeholder="Enter publisher">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="manual-published-date">Published Date</label>
+                        <input type="text" id="manual-published-date" placeholder="YYYY or YYYY-MM-DD">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="manual-page-count">Page Count</label>
+                        <input type="number" id="manual-page-count" placeholder="Number of pages">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="manual-categories">Categories/Genre</label>
+                        <input type="text" id="manual-categories" placeholder="e.g., Fiction, Science, Biography">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="manual-description">Description</label>
+                        <textarea id="manual-description" placeholder="Brief description of the book" rows="3" style="width: 100%; padding: 0.75rem; background: var(--input-background); border: 1px solid var(--border); border-radius: var(--radius); font-size: inherit; resize: vertical; font-family: inherit;"></textarea>
+                    </div>
+
+                    <button class="button" onclick="addManualBookToNotion()" id="manual-add-button">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 5v14"></path>
+                            <path d="M5 12h14"></path>
+                        </svg>
+                        Add Book to Notion
+                    </button>
+                </div>
+            </div>
+
+            <div style="text-align: center; color: var(--muted-foreground); font-size: 0.875rem;">
+                * Required fields. Fill in as much information as you have.
+            </div>
+        </div>
+
         <!-- Results -->
         <div id="results"></div>
     </div>
@@ -556,6 +648,7 @@ HTML_TEMPLATE = '''
             document.getElementById('home-view').style.display = 'block';
             document.getElementById('scanner-view').style.display = 'none';
             document.getElementById('manual-view').style.display = 'none';
+            document.getElementById('manual-book-form').style.display = 'none';
             stopScanner();
             clearResults();
         }
@@ -564,6 +657,7 @@ HTML_TEMPLATE = '''
             document.getElementById('home-view').style.display = 'none';
             document.getElementById('scanner-view').style.display = 'block';
             document.getElementById('manual-view').style.display = 'none';
+            document.getElementById('manual-book-form').style.display = 'none';
             clearResults();
         }
 
@@ -571,8 +665,42 @@ HTML_TEMPLATE = '''
             document.getElementById('home-view').style.display = 'none';
             document.getElementById('scanner-view').style.display = 'none';
             document.getElementById('manual-view').style.display = 'block';
+            document.getElementById('manual-book-form').style.display = 'none';
             clearResults();
             document.getElementById('isbn-input').value = '';
+        }
+
+        function showManualBookForm() {
+            document.getElementById('home-view').style.display = 'none';
+            document.getElementById('scanner-view').style.display = 'none';
+            document.getElementById('manual-view').style.display = 'none';
+            document.getElementById('manual-book-form').style.display = 'block';
+            clearManualForm();
+        }
+
+        function hideManualBookForm() {
+            // Go back to the previous view that triggered the manual form
+            var isbn = document.getElementById('isbn-input').value.trim();
+            if (isbn) {
+                showManualEntry();
+            } else {
+                showHome();
+            }
+        }
+
+        function clearManualForm() {
+            document.getElementById('manual-title').value = '';
+            document.getElementById('manual-author').value = '';
+            document.getElementById('manual-isbn').value = '';
+            document.getElementById('manual-publisher').value = '';
+            document.getElementById('manual-published-date').value = '';
+            document.getElementById('manual-page-count').value = '';
+            document.getElementById('manual-categories').value = '';
+            document.getElementById('manual-description').value = '';
+            
+            var addButton = document.getElementById('manual-add-button');
+            addButton.disabled = false;
+            addButton.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>Add Book to Notion';
         }
 
         function clearResults() {
@@ -582,10 +710,17 @@ HTML_TEMPLATE = '''
         }
 
         function resetAddNotionButton() {
+            // Reset manual entry button
             var addButton = document.getElementById('add-notion-button');
             addButton.style.display = 'none';
             addButton.disabled = false;
             addButton.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>Add to Notion Library';
+            
+            // Reset scanner button
+            var scannerButton = document.getElementById('add-notion-scanner-button');
+            scannerButton.style.display = 'none';
+            scannerButton.disabled = false;
+            scannerButton.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>Add to Notion Library';
         }
 
         function handleEnterKey(event) {
@@ -658,7 +793,7 @@ HTML_TEMPLATE = '''
                     stopScanner();
                     showResult('Barcode detected: ' + isbn, 'success');
                     setTimeout(function() {
-                        lookupBookByISBN(isbn);
+                        lookupBookByISBN(isbn, 'scanner');
                     }, 1000);
                 });
             } else {
@@ -719,10 +854,10 @@ HTML_TEMPLATE = '''
                 return;
             }
 
-            lookupBookByISBN(isbn);
+            lookupBookByISBN(isbn, 'manual');
         }
 
-        function lookupBookByISBN(isbn) {
+        function lookupBookByISBN(isbn, source) {
             showResult('Looking up book details...', 'loading');
             resetAddNotionButton();
             
@@ -740,14 +875,37 @@ HTML_TEMPLATE = '''
                 if (result.success) {
                     currentBook = result;
                     displayBook(result);
-                    document.getElementById('add-notion-button').style.display = 'inline-flex';
+                    
+                    // Show appropriate Add to Notion button based on source
+                    if (source === 'scanner') {
+                        document.getElementById('add-notion-scanner-button').style.display = 'inline-flex';
+                    } else {
+                        document.getElementById('add-notion-button').style.display = 'inline-flex';
+                    }
                 } else {
-                    showResult('Error: ' + result.error, 'error');
+                    showBookNotFoundResult(result.error, source);
                 }
             })
             .catch(function(error) {
                 showResult('Network error: ' + error.message, 'error');
             });
+        }
+
+        function showBookNotFoundResult(error, source) {
+            var results = document.getElementById('results');
+            var html = '<div class="result result-error">' +
+                '<strong>Book Not Found</strong>' +
+                '<p>' + error + '</p>' +
+                '<button class="button button-secondary" onclick="showManualBookForm()" style="margin-top: 1rem; width: auto; display: inline-flex;">' +
+                '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+                '<path d="M12 5v14"></path>' +
+                '<path d="M5 12h14"></path>' +
+                '</svg>' +
+                'Add Book Manually' +
+                '</button>' +
+                '</div>';
+            
+            results.innerHTML = html;
         }
 
         function addToNotion() {
@@ -757,8 +915,11 @@ HTML_TEMPLATE = '''
             }
 
             var addButton = document.getElementById('add-notion-button');
-            addButton.disabled = true;
-            addButton.innerHTML = '<svg class="animate-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>Adding to Notion...';
+            var scannerAddButton = document.getElementById('add-notion-scanner-button');
+            var activeButton = addButton.style.display !== 'none' ? addButton : scannerAddButton;
+
+            activeButton.disabled = true;
+            activeButton.innerHTML = '<svg class="animate-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>Adding to Notion...';
 
             fetch('/test-isbn', {
                 method: 'POST',
@@ -776,18 +937,72 @@ HTML_TEMPLATE = '''
             .then(function(result) {
                 if (result.success && result.saved_to_notion) {
                     displayBookWithNotion(result, true);
+                    activeButton.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"></path></svg>Added to Notion!';
+                    activeButton.disabled = true;
+                } else {
+                    showResult('Failed to add to Notion. Please check your configuration.', 'error');
+                    activeButton.disabled = false;
+                    activeButton.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>Add to Notion Library';
+                }
+            })
+            .catch(function(error) {
+                showResult('Network error: ' + error.message, 'error');
+                activeButton.disabled = false;
+                activeButton.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>Add to Notion Library';
+            });
+        }
+
+        function addManualBookToNotion() {
+            var title = document.getElementById('manual-title').value.trim();
+            var author = document.getElementById('manual-author').value.trim();
+            
+            if (!title || !author) {
+                showResult('Please fill in the required fields (Title and Author)', 'error');
+                return;
+            }
+
+            var manualBook = {
+                title: title,
+                author: author,
+                isbn: document.getElementById('manual-isbn').value.trim() || 'Manual Entry',
+                publisher: document.getElementById('manual-publisher').value.trim(),
+                published_date: document.getElementById('manual-published-date').value.trim(),
+                page_count: parseInt(document.getElementById('manual-page-count').value) || null,
+                categories: document.getElementById('manual-categories').value.trim(),
+                description: document.getElementById('manual-description').value.trim(),
+                language: 'en',
+                cover_image: null
+            };
+
+            var addButton = document.getElementById('manual-add-button');
+            addButton.disabled = true;
+            addButton.innerHTML = '<svg class="animate-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>Adding to Notion...';
+
+            fetch('/add-manual-book', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(manualBook)
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(result) {
+                if (result.success) {
+                    showResult('Successfully added "' + manualBook.title + '" to your Notion library!', 'success');
                     addButton.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"></path></svg>Added to Notion!';
                     addButton.disabled = true;
                 } else {
-                    showResult('Failed to add to Notion. Please check your configuration.', 'error');
+                    showResult('Failed to add book: ' + result.error, 'error');
                     addButton.disabled = false;
-                    addButton.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>Add to Notion Library';
+                    addButton.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>Add Book to Notion';
                 }
             })
             .catch(function(error) {
                 showResult('Network error: ' + error.message, 'error');
                 addButton.disabled = false;
-                addButton.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>Add to Notion Library';
+                addButton.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>Add Book to Notion';
             });
         }
 
@@ -904,6 +1119,51 @@ HTML_TEMPLATE = '''
 def home():
     """Serve the main web interface"""
     return HTML_TEMPLATE
+
+@app.route('/add-manual-book', methods=['POST'])
+def add_manual_book():
+    """Add a manually entered book directly to Notion"""
+    try:
+        data = request.get_json()
+        
+        # Validate required fields
+        if not data.get('title') or not data.get('author'):
+            return jsonify({'success': False, 'error': 'Title and Author are required'})
+        
+        # Check if Notion is configured
+        if not is_notion_configured():
+            return jsonify({'success': False, 'error': 'Notion is not configured. Please check your environment variables.'})
+        
+        # Create book data structure
+        book_data = {
+            'title': data.get('title', '').strip(),
+            'author': data.get('author', '').strip(),
+            'isbn': data.get('isbn', '').strip() or 'Manual Entry',
+            'publisher': data.get('publisher', '').strip(),
+            'published_date': data.get('published_date', '').strip(),
+            'page_count': data.get('page_count'),
+            'categories': data.get('categories', '').strip(),
+            'description': data.get('description', '').strip(),
+            'language': 'en',
+            'cover_image': None
+        }
+        
+        # Add book to Notion
+        notion_result = add_book_to_notion(book_data)
+        
+        if notion_result:
+            logger.info(f"Successfully added manual book to Notion: {book_data['title']}")
+            return jsonify({
+                'success': True,
+                'message': f'Successfully added "{book_data["title"]}" to your Notion library',
+                'notion_id': notion_result.get('id')
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Failed to add book to Notion database'})
+            
+    except Exception as e:
+        logger.error(f"Error adding manual book: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/test-isbn', methods=['POST'])
 def test_isbn():
