@@ -558,6 +558,57 @@ def parse_date(date_string):
     except Exception:
         return None
 
+@app.route('/debug-notion')
+def debug_notion():
+    """Debug: Check Notion configuration and test simple API call"""
+    try:
+        result = {
+            "token_configured": bool(NOTION_TOKEN and NOTION_TOKEN not in ['', 'dummy_token']),
+            "database_configured": bool(NOTION_DATABASE_ID and NOTION_DATABASE_ID not in ['', 'dummy_database_id']),
+            "token_starts_with": NOTION_TOKEN[:10] if NOTION_TOKEN else "None",
+            "database_id": NOTION_DATABASE_ID if NOTION_DATABASE_ID else "None",
+            "database_id_length": len(NOTION_DATABASE_ID) if NOTION_DATABASE_ID else 0
+        }
+        
+        # Test simple database access
+        if NOTION_TOKEN and NOTION_DATABASE_ID:
+            headers = {
+                "Authorization": f"Bearer {NOTION_TOKEN}",
+                "Notion-Version": "2022-06-28"
+            }
+            
+            try:
+                # Try to get database info
+                url = f"https://api.notion.com/v1/databases/{NOTION_DATABASE_ID}"
+                response = requests.get(url, headers=headers, timeout=10)
+                
+                result["api_test"] = {
+                    "status_code": response.status_code,
+                    "success": response.status_code == 200,
+                    "error": response.json() if response.status_code != 200 else None
+                }
+                
+                if response.status_code == 200:
+                    db_info = response.json()
+                    result["database_info"] = {
+                        "title": db_info.get("title", [{}])[0].get("plain_text", "Unknown"),
+                        "properties": list(db_info.get("properties", {}).keys())
+                    }
+                
+            except Exception as e:
+                result["api_test"] = {
+                    "success": False,
+                    "error": str(e)
+                }
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error", 
+            "error": str(e)
+        })
+
 @app.route('/debug-databases')
 def debug_databases():
     """Debug: Test database access with different ID formats"""
