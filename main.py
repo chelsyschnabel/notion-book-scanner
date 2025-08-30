@@ -1230,9 +1230,23 @@ def add_book_to_notion(book_data):
         if book_data.get('page_count'):
             properties["Page Count"] = {"number": book_data['page_count']}
         
-        # Add Cover image (automatic)
+        # Add Cover images (both URL and Files & media types)
         if book_data.get('cover_image'):
+            # Original Cover image as URL type
             properties["Cover image"] = {"url": book_data['cover_image']}
+            
+            # New Cover PNG as Files & media type
+            properties["Cover PNG"] = {
+                "files": [
+                    {
+                        "name": f"{book_data['title']}_cover.png",
+                        "type": "external",
+                        "external": {
+                            "url": book_data['cover_image']
+                        }
+                    }
+                ]
+            }
         
         # Add Published Date (automatic)
         if book_data.get('published_date'):
@@ -1253,7 +1267,7 @@ def add_book_to_notion(book_data):
             "properties": properties
         }
         
-        logger.info(f"Adding book with all properties: {book_data['title']}")
+        logger.info(f"Adding book with all properties including Cover PNG: {book_data['title']}")
         logger.info(f"Database ID: {NOTION_DATABASE_ID}")
         
         response = requests.post(url, headers=headers, json=payload, timeout=15)
@@ -1264,7 +1278,7 @@ def add_book_to_notion(book_data):
             
         response.raise_for_status()
         
-        logger.info(f"Successfully added to Notion: {book_data['title']}")
+        logger.info(f"Successfully added to Notion with Cover PNG: {book_data['title']}")
         return response.json()
         
     except requests.exceptions.HTTPError as e:
