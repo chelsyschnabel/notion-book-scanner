@@ -468,7 +468,7 @@ def is_notion_configured():
             NOTION_DATABASE_ID and NOTION_DATABASE_ID not in ['', 'dummy_database_id'])
 
 def add_book_to_notion(book_data):
-    """Add book to Notion database with all specified columns"""
+    """Add book to Notion database with flexible column handling"""
     if not is_notion_configured():
         logger.error("Notion not configured")
         return None
@@ -481,126 +481,52 @@ def add_book_to_notion(book_data):
             "Notion-Version": "2022-06-28"
         }
         
-        # Build properties for all specified columns from README
+        # Start with basic properties that should always work
         properties = {
-            # BookName (using Title property type)
-            "BookName": {
-                "title": [{"text": {"content": book_data['title']}}]
-            },
-            
-            # ISBN
-            "ISBN": {
-                "rich_text": [{"text": {"content": book_data['isbn']}}]
-            },
-            
-            # Status (default to "New")
-            "Status": {
-                "select": {"name": "New"}
-            },
-            
-            # Author
-            "Author": {
-                "rich_text": [{"text": {"content": book_data['author']}}]
-            },
-            
-            # Publisher
-            "Publisher": {
-                "rich_text": [{"text": {"content": book_data.get('publisher', '')}}]
-            },
-            
-            # Published Date
-            "Published Date": {},
-            
-            # Descriptions
-            "Descriptions": {
-                "rich_text": [{"text": {"content": book_data.get('description', '')}}]
-            },
-            
-            # Page Count
-            "Page Count": {},
-            
-            # Category
-            "Category": {
-                "rich_text": [{"text": {"content": book_data.get('categories', '')}}]
-            },
-            
-            # ReadStatus (default to "Want to Read")
-            "ReadStatus": {
-                "select": {"name": "Want to Read"}
-            },
-            
-            # StartDate (empty by default)
-            "StartDate": {"date": None},
-            
-            # FinishDate (empty by default) 
-            "FinishDate": {"date": None},
-            
-            # Favorite (default to false)
-            "Favorite": {"checkbox": False},
-            
-            # Currentpage (default to 0)
-            "Currentpage": {"number": 0},
-            
-            # PublishPlace
-            "PublishPlace": {
-                "rich_text": [{"text": {"content": book_data.get('publish_place', '')}}]
-            },
-            
-            # Language
-            "Language": {
-                "rich_text": [{"text": {"content": book_data.get('language', 'en')}}]
-            },
-            
-            # MyRate (empty by default, user can fill in)
-            "MyRate": {"number": None},
-            
-            # Cover image
-            "Cover image": {},
-            
-            # AMZ-CoverImage (empty by default)
-            "AMZ-CoverImage": {
-                "rich_text": [{"text": {"content": ""}}]
-            },
-            
-            # My Progress (default to 0%)
-            "My Progress": {"number": 0},
-            
-            # ReadLog (empty by default for user notes)
-            "ReadLog": {
-                "rich_text": [{"text": {"content": ""}}]
-            }
+            "BookName": {"title": [{"text": {"content": book_data['title']}}]},
+            "ISBN": {"rich_text": [{"text": {"content": book_data['isbn']}}]},
+            "Author": {"rich_text": [{"text": {"content": book_data['author']}}]}
         }
         
-        # Fill in the conditional fields
+        # Add optional properties only if they would work
+        # These are the most common ones that likely exist in your database
+        
+        # Publisher
+        if book_data.get('publisher'):
+            properties["Publisher"] = {"rich_text": [{"text": {"content": book_data['publisher']}}]}
         
         # Published Date
         if book_data.get('published_date'):
             parsed_date = parse_date(book_data['published_date'])
             if parsed_date:
                 properties["Published Date"] = {"date": {"start": parsed_date}}
-            else:
-                properties["Published Date"] = {"rich_text": [{"text": {"content": book_data['published_date']}}]}
-        else:
-            properties["Published Date"] = {"rich_text": [{"text": {"content": ""}}]}
         
         # Page Count
         if book_data.get('page_count'):
             properties["Page Count"] = {"number": book_data['page_count']}
-        else:
-            properties["Page Count"] = {"number": None}
+        
+        # Description
+        if book_data.get('description'):
+            properties["Descriptions"] = {"rich_text": [{"text": {"content": book_data['description']}}]}
+        
+        # Category
+        if book_data.get('categories'):
+            properties["Category"] = {"rich_text": [{"text": {"content": book_data['categories']}}]}
         
         # Cover image
         if book_data.get('cover_image'):
             properties["Cover image"] = {"url": book_data['cover_image']}
-        else:
-            properties["Cover image"] = {"rich_text": [{"text": {"content": ""}}]}
+        
+        # Language
+        if book_data.get('language'):
+            properties["Language"] = {"rich_text": [{"text": {"content": book_data['language']}}]}
         
         payload = {
             "parent": {"database_id": NOTION_DATABASE_ID},
             "properties": properties
         }
         
-        logger.info(f"Adding book with all properties: {book_data['title']}")
+        logger.info(f"Adding book with basic properties: {book_data['title']}")
         
         response = requests.post(url, headers=headers, json=payload, timeout=15)
         
