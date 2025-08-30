@@ -1,27 +1,4 @@
-@app.route('/add-manual-book', methods=['POST'])
-def add_manual_book():
-    """Add a manually entered book directly to Notion"""
-    try:
-        data = request.get_json()
-        
-        # Validate required fields
-        if not data.get('title') or not data.get('author'):
-            return jsonify({'success': False, 'error': 'Title and Author are required'})
-        
-        # Check if Notion is configured
-        if not is_notion_configured():
-            return jsonify({'success': False, 'error': 'Notion is not configured. Please check your environment variables.'})
-        
-        # Create book data structure
-        book_data = {
-            'title': data.get('title', '').strip(),
-            'author': data.get('author', '').strip(),
-            'isbn': data.get('isbn', '').strip() or 'Manual Entry',
-            'publisher': data.get('publisher', '').strip(),
-            'published_date': data.get('published_date', '').strip(),
-            'page_count': data.get('page_count'),
-            'categories': data.get('categories', '').strip(),
-            'description': dataimport os
+import os
 import json
 import logging
 import requests
@@ -168,10 +145,6 @@ HTML_TEMPLATE = '''
             font-size: 0.875rem;
         }
 
-        .scanner-section {
-            margin: 2rem 0;
-        }
-
         .scanner-header {
             display: flex;
             align-items: center;
@@ -213,7 +186,7 @@ HTML_TEMPLATE = '''
             color: var(--foreground);
         }
 
-        input[type="text"] {
+        input[type="text"], input[type="number"], textarea {
             width: 100%;
             padding: 0.75rem;
             background: var(--input-background);
@@ -221,12 +194,18 @@ HTML_TEMPLATE = '''
             border-radius: var(--radius);
             font-size: inherit;
             transition: all 0.2s;
+            font-family: inherit;
         }
 
-        input[type="text"]:focus {
+        input[type="text"]:focus, input[type="number"]:focus, textarea:focus {
             outline: none;
             border-color: var(--primary);
             background: var(--background);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 4rem;
         }
 
         .button {
@@ -262,24 +241,9 @@ HTML_TEMPLATE = '''
             color: var(--secondary-foreground);
         }
 
-        .button-outline {
-            background: transparent;
-            color: var(--primary);
-            border: 1px solid var(--border);
-        }
-
         #scanner-container {
             display: none;
             margin: 1.5rem 0;
-        }
-
-        #scanner {
-            width: 100%;
-            max-width: 400px;
-            aspect-ratio: 4/3;
-            border-radius: var(--radius);
-            overflow: hidden;
-            border: 1px solid var(--border);
         }
 
         .scanner-overlay {
@@ -416,7 +380,6 @@ HTML_TEMPLATE = '''
             body {
                 padding: 0.75rem;
             }
-            
             .card-content {
                 padding: 1rem;
             }
@@ -519,6 +482,14 @@ HTML_TEMPLATE = '''
                 Start Scanning
             </button>
 
+            <button class="button" onclick="addToNotion()" id="add-notion-scanner-button" style="display: none;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14"></path>
+                    <path d="M5 12h14"></path>
+                </svg>
+                Add to Notion Library
+            </button>
+
             <p style="text-align: center; color: var(--muted-foreground); font-size: 0.875rem;">
                 Point your camera at the book's barcode
             </p>
@@ -617,7 +588,7 @@ HTML_TEMPLATE = '''
 
                     <div class="input-group">
                         <label for="manual-description">Description</label>
-                        <textarea id="manual-description" placeholder="Brief description of the book" rows="3" style="width: 100%; padding: 0.75rem; background: var(--input-background); border: 1px solid var(--border); border-radius: var(--radius); font-size: inherit; resize: vertical; font-family: inherit;"></textarea>
+                        <textarea id="manual-description" placeholder="Brief description of the book" rows="3"></textarea>
                     </div>
 
                     <button class="button" onclick="addManualBookToNotion()" id="manual-add-button">
@@ -679,7 +650,6 @@ HTML_TEMPLATE = '''
         }
 
         function hideManualBookForm() {
-            // Go back to the previous view that triggered the manual form
             var isbn = document.getElementById('isbn-input').value.trim();
             if (isbn) {
                 showManualEntry();
@@ -710,13 +680,11 @@ HTML_TEMPLATE = '''
         }
 
         function resetAddNotionButton() {
-            // Reset manual entry button
             var addButton = document.getElementById('add-notion-button');
             addButton.style.display = 'none';
             addButton.disabled = false;
             addButton.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>Add to Notion Library';
             
-            // Reset scanner button
             var scannerButton = document.getElementById('add-notion-scanner-button');
             scannerButton.style.display = 'none';
             scannerButton.disabled = false;
@@ -876,7 +844,6 @@ HTML_TEMPLATE = '''
                     currentBook = result;
                     displayBook(result);
                     
-                    // Show appropriate Add to Notion button based on source
                     if (source === 'scanner') {
                         document.getElementById('add-notion-scanner-button').style.display = 'inline-flex';
                     } else {
@@ -1083,28 +1050,24 @@ HTML_TEMPLATE = '''
         document.addEventListener('DOMContentLoaded', function() {
             var isbnInput = document.getElementById('isbn-input');
             
-            // Clear Add to Notion button when user starts typing a new ISBN
             isbnInput.addEventListener('input', function() {
                 resetAddNotionButton();
                 currentBook = null;
                 document.getElementById('results').innerHTML = '';
             });
             
-            // Format ISBN as user types (digits only)
             isbnInput.addEventListener('input', function(e) {
-                var value = e.target.value.replace(/\\D/g, ''); // Remove non-digits
+                var value = e.target.value.replace(/\\D/g, '');
                 if (value.length <= 13) {
                     e.target.value = value;
                 }
             });
         });
 
-        // Clean up scanner when page unloads
         window.addEventListener('beforeunload', function() {
             stopScanner();
         });
 
-        // Handle page visibility changes to stop camera when tab is hidden
         document.addEventListener('visibilitychange', function() {
             if (document.hidden) {
                 stopScanner();
