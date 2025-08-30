@@ -488,9 +488,13 @@ def add_book_to_notion(book_data):
             "Author": {"rich_text": [{"text": {"content": book_data['author']}}]}
         }
         
-        # Add just Publisher first to test
+        # Add Publisher (working)
         if book_data.get('publisher'):
             properties["Publisher"] = {"rich_text": [{"text": {"content": book_data['publisher']}}]}
+        
+        # Add Page Count next
+        if book_data.get('page_count'):
+            properties["Page Count"] = {"number": book_data['page_count']}
         
         payload = {
             "parent": {"database_id": NOTION_DATABASE_ID},
