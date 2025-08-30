@@ -506,6 +506,10 @@ def add_book_to_notion(book_data):
             if parsed_date:
                 properties["Published Date"] = {"date": {"start": parsed_date}}
         
+        # Test Descriptions next
+        if book_data.get('description'):
+            properties["Descriptions"] = {"rich_text": [{"text": {"content": book_data['description']}}]}
+        
         payload = {
             "parent": {"database_id": NOTION_DATABASE_ID},
             "properties": properties
