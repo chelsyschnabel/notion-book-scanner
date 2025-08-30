@@ -468,7 +468,7 @@ def is_notion_configured():
             NOTION_DATABASE_ID and NOTION_DATABASE_ID not in ['', 'dummy_database_id'])
 
 def add_book_to_notion(book_data):
-    """Add book to Notion database with flexible column handling"""
+    """Add book to Notion database - minimal working version"""
     if not is_notion_configured():
         logger.error("Notion not configured")
         return None
@@ -481,56 +481,25 @@ def add_book_to_notion(book_data):
             "Notion-Version": "2022-06-28"
         }
         
-        # Start with basic properties that should always work
+        # Go back to the minimal properties that worked before
         properties = {
             "BookName": {"title": [{"text": {"content": book_data['title']}}]},
             "ISBN": {"rich_text": [{"text": {"content": book_data['isbn']}}]},
             "Author": {"rich_text": [{"text": {"content": book_data['author']}}]}
         }
         
-        # Add optional properties only if they would work
-        # These are the most common ones that likely exist in your database
-        
-        # Publisher
-        if book_data.get('publisher'):
-            properties["Publisher"] = {"rich_text": [{"text": {"content": book_data['publisher']}}]}
-        
-        # Published Date
-        if book_data.get('published_date'):
-            parsed_date = parse_date(book_data['published_date'])
-            if parsed_date:
-                properties["Published Date"] = {"date": {"start": parsed_date}}
-        
-        # Page Count
-        if book_data.get('page_count'):
-            properties["Page Count"] = {"number": book_data['page_count']}
-        
-        # Description
-        if book_data.get('description'):
-            properties["Descriptions"] = {"rich_text": [{"text": {"content": book_data['description']}}]}
-        
-        # Category
-        if book_data.get('categories'):
-            properties["Category"] = {"rich_text": [{"text": {"content": book_data['categories']}}]}
-        
-        # Cover image
-        if book_data.get('cover_image'):
-            properties["Cover image"] = {"url": book_data['cover_image']}
-        
-        # Language
-        if book_data.get('language'):
-            properties["Language"] = {"rich_text": [{"text": {"content": book_data['language']}}]}
-        
         payload = {
             "parent": {"database_id": NOTION_DATABASE_ID},
             "properties": properties
         }
         
-        logger.info(f"Adding book with basic properties: {book_data['title']}")
+        logger.info(f"Adding book with minimal properties: {book_data['title']}")
+        logger.info(f"Database ID: {NOTION_DATABASE_ID}")
         
         response = requests.post(url, headers=headers, json=payload, timeout=15)
         
         if response.status_code != 200:
+            logger.error(f"Response status: {response.status_code}")
             logger.error(f"Response content: {response.text}")
             
         response.raise_for_status()
