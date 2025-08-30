@@ -24,7 +24,7 @@ HTML_TEMPLATE = '''
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Book Scanner</title>
-    <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
     <style>
         :root {
             --font-size: 14px;
@@ -465,7 +465,7 @@ HTML_TEMPLATE = '''
 
             <div class="card">
                 <div class="card-content">
-                    <div class="scanner-overlay">
+                    <div class="scanner-overlay" id="scanner-overlay">
                         <div class="scanner-frame">
                             <svg class="scanner-icon animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
@@ -517,7 +517,7 @@ HTML_TEMPLATE = '''
                 <div class="card-content">
                     <div class="input-group">
                         <label for="isbn-input">ISBN Number</label>
-                        <input type="text" id="isbn-input" placeholder="Enter ISBN (10 or 13 digits)">
+                        <input type="text" id="isbn-input" placeholder="Enter ISBN (10 or 13 digits)" onkeypress="handleEnterKey(event)">
                     </div>
                     
                     <button class="button" onclick="lookupBook()" id="lookup-button">
@@ -550,6 +550,7 @@ HTML_TEMPLATE = '''
     <script>
         var scanner = null;
         var currentBook = null;
+        var scannerInitialized = false;
 
         function showHome() {
             document.getElementById('home-view').style.display = 'block';
@@ -571,21 +572,42 @@ HTML_TEMPLATE = '''
             document.getElementById('scanner-view').style.display = 'none';
             document.getElementById('manual-view').style.display = 'block';
             clearResults();
+            document.getElementById('isbn-input').value = '';
         }
 
         function clearResults() {
             document.getElementById('results').innerHTML = '';
             currentBook = null;
-            document.getElementById('add-notion-button').style.display = 'none';
+            resetAddNotionButton();
+        }
+
+        function resetAddNotionButton() {
+            var addButton = document.getElementById('add-notion-button');
+            addButton.style.display = 'none';
+            addButton.disabled = false;
+            addButton.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>Add to Notion Library';
+        }
+
+        function handleEnterKey(event) {
+            if (event.key === 'Enter') {
+                lookupBook();
+            }
         }
 
         function startScanning() {
             var container = document.getElementById('scanner-container');
+            var overlay = document.getElementById('scanner-overlay');
             var scanButton = document.getElementById('scan-button');
             var status = document.getElementById('scanner-status');
             var progress = document.getElementById('scanner-progress');
 
+            if (typeof Quagga === 'undefined') {
+                showResult('Camera scanner not available. Please use manual ISBN entry instead.', 'error');
+                return;
+            }
+
             container.style.display = 'block';
+            overlay.style.display = 'none';
             progress.style.display = 'block';
             scanButton.disabled = true;
             scanButton.innerHTML = '<svg class="animate-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>Starting...';
@@ -603,22 +625,35 @@ HTML_TEMPLATE = '''
                             facingMode: "environment"
                         },
                     },
-                    decoder: {
-                        readers: ["ean_reader", "ean_8_reader", "code_128_reader", "code_39_reader"]
+                    locator: {
+                        patchSize: "medium",
+                        halfSample: true
                     },
+                    numOfWorkers: 2,
+                    decoder: {
+                        readers: ["ean_reader", "ean_8_reader", "code_128_reader", "code_39_reader", "codabar_reader"]
+                    },
+                    locate: true
                 }, function(err) {
                     if (err) {
+                        console.error('Quagga init error:', err);
                         showResult('Camera error: ' + err.message + '. Please try manual entry.', 'error');
                         resetScanButton();
+                        overlay.style.display = 'flex';
+                        container.style.display = 'none';
                         return;
                     }
+                    
+                    console.log('Quagga initialized successfully');
                     Quagga.start();
                     status.textContent = 'Camera ready! Point at a barcode.';
                     simulateProgress();
+                    scannerInitialized = true;
                 });
 
                 Quagga.onDetected(function(result) {
                     var isbn = result.codeResult.code;
+                    console.log('Barcode detected:', isbn);
                     document.getElementById('isbn-input').value = isbn;
                     stopScanner();
                     showResult('Barcode detected: ' + isbn, 'success');
@@ -629,6 +664,8 @@ HTML_TEMPLATE = '''
             } else {
                 showResult('Camera not supported. Please use manual entry.', 'error');
                 resetScanButton();
+                overlay.style.display = 'flex';
+                container.style.display = 'none';
             }
         }
 
@@ -636,7 +673,7 @@ HTML_TEMPLATE = '''
             var progressBar = document.getElementById('progress-bar');
             var width = 0;
             var interval = setInterval(function() {
-                if (width >= 100) {
+                if (width >= 100 || !scannerInitialized) {
                     clearInterval(interval);
                     return;
                 }
@@ -647,10 +684,17 @@ HTML_TEMPLATE = '''
         }
 
         function stopScanner() {
-            if (typeof Quagga !== 'undefined' && Quagga.stop) {
-                Quagga.stop();
+            try {
+                if (typeof Quagga !== 'undefined' && Quagga.stop) {
+                    Quagga.stop();
+                }
+            } catch (e) {
+                console.log('Error stopping scanner:', e);
             }
+            
+            scannerInitialized = false;
             document.getElementById('scanner-container').style.display = 'none';
+            document.getElementById('scanner-overlay').style.display = 'flex';
             document.getElementById('scanner-progress').style.display = 'none';
             resetScanButton();
         }
@@ -660,6 +704,7 @@ HTML_TEMPLATE = '''
             scanButton.disabled = false;
             scanButton.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>Start Scanning';
             document.getElementById('scanner-status').textContent = 'Position barcode within the frame';
+            document.getElementById('progress-bar').style.width = '0%';
         }
 
         function lookupBook() {
@@ -679,6 +724,7 @@ HTML_TEMPLATE = '''
 
         function lookupBookByISBN(isbn) {
             showResult('Looking up book details...', 'loading');
+            resetAddNotionButton();
             
             fetch('/test-isbn', {
                 method: 'POST',
@@ -731,6 +777,7 @@ HTML_TEMPLATE = '''
                 if (result.success && result.saved_to_notion) {
                     displayBookWithNotion(result, true);
                     addButton.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"></path></svg>Added to Notion!';
+                    addButton.disabled = true;
                 } else {
                     showResult('Failed to add to Notion. Please check your configuration.', 'error');
                     addButton.disabled = false;
@@ -817,8 +864,37 @@ HTML_TEMPLATE = '''
             results.innerHTML = html;
         }
 
+        // Enhanced ISBN input handling
+        document.addEventListener('DOMContentLoaded', function() {
+            var isbnInput = document.getElementById('isbn-input');
+            
+            // Clear Add to Notion button when user starts typing a new ISBN
+            isbnInput.addEventListener('input', function() {
+                resetAddNotionButton();
+                currentBook = null;
+                document.getElementById('results').innerHTML = '';
+            });
+            
+            // Format ISBN as user types (digits only)
+            isbnInput.addEventListener('input', function(e) {
+                var value = e.target.value.replace(/\\D/g, ''); // Remove non-digits
+                if (value.length <= 13) {
+                    e.target.value = value;
+                }
+            });
+        });
+
         // Clean up scanner when page unloads
-        window.addEventListener('beforeunload', stopScanner);
+        window.addEventListener('beforeunload', function() {
+            stopScanner();
+        });
+
+        // Handle page visibility changes to stop camera when tab is hidden
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                stopScanner();
+            }
+        });
     </script>
 </body>
 </html>
