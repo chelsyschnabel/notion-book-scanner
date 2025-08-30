@@ -565,3 +565,18 @@ def health_check():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port, debug=False)
+
+@app.route('/debug-databases')
+def debug_databases():
+    """Debug: List all databases accessible to integration"""
+    try:
+        headers = {
+            "Authorization": f"Bearer {NOTION_TOKEN}",
+            "Notion-Version": "2022-06-28"
+        }
+        
+        response = requests.get("https://api.notion.com/v1/databases", headers=headers)
+        return jsonify(response.json())
+        
+    except Exception as e:
+        return jsonify({"error": str(e)})
