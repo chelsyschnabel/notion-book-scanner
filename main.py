@@ -16,177 +16,587 @@ NOTION_TOKEN = os.environ.get('NOTION_TOKEN', '')
 NOTION_DATABASE_ID = os.environ.get('NOTION_DATABASE_ID', '')
 GOOGLE_BOOKS_API_KEY = os.environ.get('GOOGLE_BOOKS_API_KEY', '')
 
-# HTML template
+# HTML template with Figma-inspired design
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📚 Book Scanner</title>
+    <title>Book Scanner</title>
     <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+        :root {
+            --font-size: 14px;
+            --background: #ffffff;
+            --foreground: oklch(0.145 0 0);
+            --card: #ffffff;
+            --card-foreground: oklch(0.145 0 0);
+            --primary: #030213;
+            --primary-foreground: oklch(1 0 0);
+            --secondary: oklch(0.95 0.0058 264.53);
+            --secondary-foreground: #030213;
+            --muted: #ececf0;
+            --muted-foreground: #717182;
+            --accent: #e9ebef;
+            --accent-foreground: #030213;
+            --destructive: #d4183d;
+            --destructive-foreground: #ffffff;
+            --border: rgba(0, 0, 0, 0.1);
+            --input-background: #f3f3f5;
+            --font-weight-medium: 500;
+            --font-weight-normal: 400;
+            --radius: 0.625rem;
         }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-        h1 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 30px;
-        }
-        .section {
-            margin: 30px 0;
-            padding: 20px;
-            border: 2px solid #f0f0f0;
-            border-radius: 10px;
-            background: #fafafa;
-        }
-        .section-title {
-            font-size: 1.3em;
-            font-weight: bold;
-            color: #444;
-            margin-bottom: 15px;
-        }
-        .status {
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 8px;
-            font-weight: bold;
-        }
-        .success {
-            background-color: #d4edda;
-            color: #155724;
-        }
-        .error {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-        .info {
-            background-color: #cce7ff;
-            color: #004085;
-        }
-        .loading {
-            background-color: #fff3cd;
-            color: #856404;
-        }
-        input, button {
-            width: 100%;
-            padding: 12px;
-            margin: 8px 0;
-            border: 2px solid #ddd;
-            border-radius: 8px;
+
+        * {
+            margin: 0;
+            padding: 0;
             box-sizing: border-box;
-            font-size: 16px;
         }
-        button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: var(--font-size);
+            background-color: var(--background);
+            color: var(--foreground);
+            line-height: 1.5;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+
+        .container {
+            max-width: 28rem;
+            margin: 0 auto;
+            space-y: 1.5rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header-icon {
+            width: 3rem;
+            height: 3rem;
+            margin: 0 auto 1rem;
+            background: var(--primary);
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary-foreground);
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: var(--font-weight-medium);
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: var(--muted-foreground);
+            font-size: 0.875rem;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            margin-bottom: 1rem;
+            transition: all 0.2s ease;
+        }
+
+        .card:hover {
+            background: var(--accent);
+        }
+
+        .card-content {
+            padding: 1.5rem;
+        }
+
+        .option-card {
             cursor: pointer;
-            font-weight: bold;
-            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
         }
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+
+        .option-icon {
+            width: 3rem;
+            height: 3rem;
+            background: oklch(0.95 0.02 264.53);
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            flex-shrink: 0;
         }
-        .scan-button {
-            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+
+        .option-content h3 {
+            font-weight: var(--font-weight-medium);
+            margin-bottom: 0.25rem;
         }
-        .notion-button {
-            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+
+        .option-content p {
+            color: var(--muted-foreground);
+            font-size: 0.875rem;
         }
+
+        .scanner-section {
+            margin: 2rem 0;
+        }
+
+        .scanner-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .back-button {
+            width: 2rem;
+            height: 2rem;
+            background: none;
+            border: none;
+            border-radius: 0.375rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--muted-foreground);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .back-button:hover {
+            background: var(--muted);
+        }
+
+        .scanner-title {
+            font-size: 1.25rem;
+            font-weight: var(--font-weight-medium);
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            font-weight: var(--font-weight-medium);
+            margin-bottom: 0.5rem;
+            color: var(--foreground);
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--input-background);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: inherit;
+            transition: all 0.2s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: var(--background);
+        }
+
+        .button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            background: var(--primary);
+            color: var(--primary-foreground);
+            border: none;
+            border-radius: var(--radius);
+            font-weight: var(--font-weight-medium);
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            margin-bottom: 0.75rem;
+        }
+
+        .button:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .button-secondary {
+            background: var(--secondary);
+            color: var(--secondary-foreground);
+        }
+
+        .button-outline {
+            background: transparent;
+            color: var(--primary);
+            border: 1px solid var(--border);
+        }
+
         #scanner-container {
             display: none;
-            margin: 20px 0;
-            text-align: center;
+            margin: 1.5rem 0;
         }
+
         #scanner {
             width: 100%;
             max-width: 400px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
+            aspect-ratio: 4/3;
+            border-radius: var(--radius);
+            overflow: hidden;
+            border: 1px solid var(--border);
         }
+
+        .scanner-overlay {
+            position: relative;
+            aspect-ratio: 4/3;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: var(--radius);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            border: 1px solid var(--border);
+        }
+
+        .scanner-frame {
+            width: 12rem;
+            height: 8rem;
+            border: 2px dashed var(--primary);
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .scanner-icon {
+            width: 2rem;
+            height: 2rem;
+            color: var(--primary);
+        }
+
+        .scanner-progress {
+            width: 12rem;
+            height: 0.5rem;
+            background: var(--muted);
+            border-radius: 0.25rem;
+            overflow: hidden;
+        }
+
+        .scanner-progress-bar {
+            height: 100%;
+            background: var(--primary);
+            transition: width 0.2s;
+            border-radius: 0.25rem;
+        }
+
+        .result {
+            padding: 1rem;
+            border-radius: var(--radius);
+            margin: 1rem 0;
+        }
+
+        .result-success {
+            background: #d1f7c4;
+            color: #15803d;
+            border: 1px solid #bbf7d0;
+        }
+
+        .result-error {
+            background: #fee2e2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        .result-loading {
+            background: #fef3c7;
+            color: #d97706;
+            border: 1px solid #fed7aa;
+        }
+
         .book-preview {
             display: flex;
-            margin: 15px 0;
-            padding: 15px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            gap: 1rem;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
         }
+
         .book-cover {
-            width: 60px;
-            height: 90px;
+            width: 4rem;
+            height: 6rem;
+            background: var(--muted);
+            border-radius: 0.375rem;
             object-fit: cover;
-            border-radius: 5px;
-            margin-right: 15px;
+            flex-shrink: 0;
         }
+
+        .book-cover-placeholder {
+            width: 4rem;
+            height: 6rem;
+            background: var(--muted);
+            border-radius: 0.375rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--muted-foreground);
+            font-size: 0.75rem;
+            text-align: center;
+        }
+
         .book-info h3 {
-            margin: 0 0 5px 0;
-            color: #333;
+            font-weight: var(--font-weight-medium);
+            margin-bottom: 0.25rem;
+            line-height: 1.4;
         }
+
         .book-info p {
-            margin: 5px 0;
-            color: #666;
-            font-size: 14px;
+            color: var(--muted-foreground);
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .animate-pulse {
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 640px) {
+            body {
+                padding: 0.75rem;
+            }
+            
+            .card-content {
+                padding: 1rem;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📚 Book Scanner</h1>
-        
-        <!-- ISBN Input Section -->
-        <div class="section">
-            <div class="section-title">📖 Add Book to Collection</div>
-            <label for="isbn">ISBN Number:</label>
-            <input type="text" id="isbn" placeholder="Enter ISBN or scan barcode below">
-            <button onclick="scanBarcode()" class="scan-button">📷 Scan Barcode with Camera</button>
-            <button onclick="lookupBook()">🔍 Look Up Book Details</button>
-            <button onclick="addToNotion()" class="notion-button">📚 Add to Notion Library</button>
+        <!-- Home View -->
+        <div id="home-view">
+            <div class="header">
+                <div class="header-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    </svg>
+                </div>
+                <h1>Book Scanner</h1>
+                <p class="subtitle">Scan barcodes or enter ISBN to add books to your library</p>
+            </div>
+
+            <div class="card" onclick="showScanner()">
+                <div class="card-content">
+                    <div class="option-card">
+                        <div class="option-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path>
+                                <circle cx="12" cy="13" r="3"></circle>
+                            </svg>
+                        </div>
+                        <div class="option-content">
+                            <h3>Scan Barcode</h3>
+                            <p>Use your camera to scan book barcodes</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" onclick="showManualEntry()">
+                <div class="card-content">
+                    <div class="option-card">
+                        <div class="option-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                                <line x1="8" y1="21" x2="16" y2="21"></line>
+                                <line x1="12" y1="17" x2="12" y2="21"></line>
+                            </svg>
+                        </div>
+                        <div class="option-content">
+                            <h3>Enter ISBN</h3>
+                            <p>Manually type in the book's ISBN number</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <!-- Barcode Scanner -->
-        <div id="scanner-container">
-            <div class="section-title">📷 Camera Scanner</div>
-            <div id="scanner"></div>
-            <button onclick="stopScanner()">❌ Stop Scanner</button>
+        <!-- Scanner View -->
+        <div id="scanner-view" style="display: none;">
+            <div class="scanner-header">
+                <button class="back-button" onclick="showHome()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="m12 19-7-7 7-7"></path>
+                        <path d="M19 12H5"></path>
+                    </svg>
+                </button>
+                <h2 class="scanner-title">Scan Barcode</h2>
+            </div>
+
+            <div class="card">
+                <div class="card-content">
+                    <div class="scanner-overlay">
+                        <div class="scanner-frame">
+                            <svg class="scanner-icon animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
+                                <path d="M17 3h2a2 2 0 0 1 2 2v2"></path>
+                                <path d="M21 17v2a2 2 0 0 1-2 2h-2"></path>
+                                <path d="M7 21H5a2 2 0 0 1-2-2v-2"></path>
+                            </svg>
+                        </div>
+                        
+                        <div id="scanner-progress" style="display: none;">
+                            <div class="scanner-progress">
+                                <div id="progress-bar" class="scanner-progress-bar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        
+                        <p id="scanner-status">Position barcode within the frame</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="scanner-container"></div>
+
+            <button class="button" onclick="startScanning()" id="scan-button">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path>
+                    <circle cx="12" cy="13" r="3"></circle>
+                </svg>
+                Start Scanning
+            </button>
+
+            <p style="text-align: center; color: var(--muted-foreground); font-size: 0.875rem;">
+                Point your camera at the book's barcode
+            </p>
         </div>
-        
+
+        <!-- Manual Entry View -->
+        <div id="manual-view" style="display: none;">
+            <div class="scanner-header">
+                <button class="back-button" onclick="showHome()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="m12 19-7-7 7-7"></path>
+                        <path d="M19 12H5"></path>
+                    </svg>
+                </button>
+                <h2 class="scanner-title">Enter ISBN</h2>
+            </div>
+
+            <div class="card">
+                <div class="card-content">
+                    <div class="input-group">
+                        <label for="isbn-input">ISBN Number</label>
+                        <input type="text" id="isbn-input" placeholder="Enter ISBN (10 or 13 digits)">
+                    </div>
+                    
+                    <button class="button" onclick="lookupBook()" id="lookup-button">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <path d="m21 21-4.35-4.35"></path>
+                        </svg>
+                        Look Up Book
+                    </button>
+
+                    <button class="button" onclick="addToNotion()" id="add-notion-button" style="display: none;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 5v14"></path>
+                            <path d="M5 12h14"></path>
+                        </svg>
+                        Add to Notion Library
+                    </button>
+                </div>
+            </div>
+
+            <div style="text-align: center; color: var(--muted-foreground); font-size: 0.875rem;">
+                Enter the 10 or 13-digit ISBN found on the book
+            </div>
+        </div>
+
         <!-- Results -->
         <div id="results"></div>
     </div>
 
     <script>
         var scanner = null;
-        
-        function scanBarcode() {
+        var currentBook = null;
+
+        function showHome() {
+            document.getElementById('home-view').style.display = 'block';
+            document.getElementById('scanner-view').style.display = 'none';
+            document.getElementById('manual-view').style.display = 'none';
+            stopScanner();
+            clearResults();
+        }
+
+        function showScanner() {
+            document.getElementById('home-view').style.display = 'none';
+            document.getElementById('scanner-view').style.display = 'block';
+            document.getElementById('manual-view').style.display = 'none';
+            clearResults();
+        }
+
+        function showManualEntry() {
+            document.getElementById('home-view').style.display = 'none';
+            document.getElementById('scanner-view').style.display = 'none';
+            document.getElementById('manual-view').style.display = 'block';
+            clearResults();
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+            currentBook = null;
+            document.getElementById('add-notion-button').style.display = 'none';
+        }
+
+        function startScanning() {
             var container = document.getElementById('scanner-container');
-            var scannerDiv = document.getElementById('scanner');
-            
+            var scanButton = document.getElementById('scan-button');
+            var status = document.getElementById('scanner-status');
+            var progress = document.getElementById('scanner-progress');
+
             container.style.display = 'block';
-            scannerDiv.innerHTML = '';
-            
+            progress.style.display = 'block';
+            scanButton.disabled = true;
+            scanButton.innerHTML = '<svg class="animate-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>Starting...';
+            status.textContent = 'Starting camera...';
+
             if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                showResult('📷 Starting camera...', 'loading');
-                
                 Quagga.init({
                     inputStream: {
                         name: "Live",
                         type: "LiveStream",
-                        target: scannerDiv,
+                        target: container,
                         constraints: {
                             width: 400,
                             height: 300,
@@ -194,36 +604,46 @@ HTML_TEMPLATE = '''
                         },
                     },
                     decoder: {
-                        readers: [
-                            "ean_reader", 
-                            "ean_8_reader", 
-                            "code_128_reader",
-                            "code_39_reader"
-                        ]
+                        readers: ["ean_reader", "ean_8_reader", "code_128_reader", "code_39_reader"]
                     },
                 }, function(err) {
                     if (err) {
-                        showResult('❌ Error starting camera: ' + err.message, 'error');
-                        container.style.display = 'none';
+                        showResult('Camera error: ' + err.message + '. Please try manual entry.', 'error');
+                        resetScanButton();
                         return;
                     }
                     Quagga.start();
-                    showResult('📷 Camera ready! Point at a barcode.', 'info');
+                    status.textContent = 'Camera ready! Point at a barcode.';
+                    simulateProgress();
                 });
 
                 Quagga.onDetected(function(result) {
                     var isbn = result.codeResult.code;
-                    document.getElementById('isbn').value = isbn;
+                    document.getElementById('isbn-input').value = isbn;
                     stopScanner();
-                    showResult('✅ Barcode detected: ' + isbn, 'success');
-                    
+                    showResult('Barcode detected: ' + isbn, 'success');
                     setTimeout(function() {
-                        lookupBook();
+                        lookupBookByISBN(isbn);
                     }, 1000);
                 });
             } else {
-                showResult('❌ Camera not supported. Please use manual entry.', 'error');
+                showResult('Camera not supported. Please use manual entry.', 'error');
+                resetScanButton();
             }
+        }
+
+        function simulateProgress() {
+            var progressBar = document.getElementById('progress-bar');
+            var width = 0;
+            var interval = setInterval(function() {
+                if (width >= 100) {
+                    clearInterval(interval);
+                    return;
+                }
+                width += Math.random() * 10;
+                if (width > 100) width = 100;
+                progressBar.style.width = width + '%';
+            }, 200);
         }
 
         function stopScanner() {
@@ -231,21 +651,34 @@ HTML_TEMPLATE = '''
                 Quagga.stop();
             }
             document.getElementById('scanner-container').style.display = 'none';
+            document.getElementById('scanner-progress').style.display = 'none';
+            resetScanButton();
+        }
+
+        function resetScanButton() {
+            var scanButton = document.getElementById('scan-button');
+            scanButton.disabled = false;
+            scanButton.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>Start Scanning';
+            document.getElementById('scanner-status').textContent = 'Position barcode within the frame';
         }
 
         function lookupBook() {
-            var isbn = document.getElementById('isbn').value.trim();
+            var isbn = document.getElementById('isbn-input').value.trim();
             if (!isbn) {
-                showResult('❌ Please enter an ISBN', 'error');
+                showResult('Please enter an ISBN', 'error');
                 return;
             }
 
             if (!isValidISBN(isbn)) {
-                showResult('❌ Invalid ISBN format', 'error');
+                showResult('Invalid ISBN format. Please enter 10 or 13 digits.', 'error');
                 return;
             }
 
-            showResult('🔍 Looking up book...', 'loading');
+            lookupBookByISBN(isbn);
+        }
+
+        function lookupBookByISBN(isbn) {
+            showResult('Looking up book details...', 'loading');
             
             fetch('/test-isbn', {
                 method: 'POST',
@@ -259,37 +692,35 @@ HTML_TEMPLATE = '''
             })
             .then(function(result) {
                 if (result.success) {
+                    currentBook = result;
                     displayBook(result);
+                    document.getElementById('add-notion-button').style.display = 'inline-flex';
                 } else {
-                    showResult('❌ Error: ' + result.error, 'error');
+                    showResult('Error: ' + result.error, 'error');
                 }
             })
             .catch(function(error) {
-                showResult('❌ Network error: ' + error.message, 'error');
+                showResult('Network error: ' + error.message, 'error');
             });
         }
 
         function addToNotion() {
-            var isbn = document.getElementById('isbn').value.trim();
-            if (!isbn) {
-                showResult('❌ Please enter an ISBN first', 'error');
+            if (!currentBook) {
+                showResult('No book selected', 'error');
                 return;
             }
 
-            if (!isValidISBN(isbn)) {
-                showResult('❌ Invalid ISBN format', 'error');
-                return;
-            }
+            var addButton = document.getElementById('add-notion-button');
+            addButton.disabled = true;
+            addButton.innerHTML = '<svg class="animate-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/></svg>Adding to Notion...';
 
-            showResult('📚 Adding to Notion...', 'loading');
-            
             fetch('/test-isbn', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    isbn: isbn,
+                    isbn: currentBook.isbn,
                     save_to_notion: true
                 })
             })
@@ -297,18 +728,19 @@ HTML_TEMPLATE = '''
                 return response.json();
             })
             .then(function(result) {
-                if (result.success) {
-                    if (result.saved_to_notion) {
-                        displayBookWithNotion(result, true);
-                    } else {
-                        showResult('❌ Notion not configured or failed to save', 'error');
-                    }
+                if (result.success && result.saved_to_notion) {
+                    displayBookWithNotion(result, true);
+                    addButton.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"></path></svg>Added to Notion!';
                 } else {
-                    showResult('❌ Error: ' + result.error, 'error');
+                    showResult('Failed to add to Notion. Please check your configuration.', 'error');
+                    addButton.disabled = false;
+                    addButton.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>Add to Notion Library';
                 }
             })
             .catch(function(error) {
-                showResult('❌ Network error: ' + error.message, 'error');
+                showResult('Network error: ' + error.message, 'error');
+                addButton.disabled = false;
+                addButton.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>Add to Notion Library';
             });
         }
 
@@ -319,17 +751,18 @@ HTML_TEMPLATE = '''
 
         function showResult(message, type) {
             var results = document.getElementById('results');
-            results.innerHTML = '<div class="status ' + type + '">' + message + '</div>';
+            var className = 'result result-' + type;
+            results.innerHTML = '<div class="' + className + '">' + message + '</div>';
         }
 
         function displayBook(book) {
             var results = document.getElementById('results');
             var coverImg = book.cover_image ? 
                 '<img src="' + book.cover_image + '" alt="Cover" class="book-cover">' : 
-                '<div class="book-cover" style="background: #ddd; display: flex; align-items: center; justify-content: center;">No Cover</div>';
+                '<div class="book-cover-placeholder">No Cover</div>';
             
-            var html = '<div class="status success">' +
-                '<strong>✅ Book Found!</strong>' +
+            var html = '<div class="result result-success">' +
+                '<strong>Book Found!</strong>' +
                 '<div class="book-preview">' +
                 coverImg +
                 '<div class="book-info">' +
@@ -356,19 +789,18 @@ HTML_TEMPLATE = '''
             var results = document.getElementById('results');
             var coverImg = book.cover_image ? 
                 '<img src="' + book.cover_image + '" alt="Cover" class="book-cover">' : 
-                '<div class="book-cover" style="background: #ddd;">No Cover</div>';
+                '<div class="book-cover-placeholder">No Cover</div>';
             
-            var message = saved ? '✅ Successfully added to Notion!' : '❌ Failed to save to Notion';
+            var message = saved ? 'Successfully added to your Notion library!' : 'Failed to save to Notion';
             var statusClass = saved ? 'success' : 'error';
             
-            var html = '<div class="status ' + statusClass + '">' +
+            var html = '<div class="result result-' + statusClass + '">' +
                 '<strong>' + message + '</strong>' +
                 '<div class="book-preview">' +
                 coverImg +
                 '<div class="book-info">' +
                 '<h3>' + book.title + '</h3>' +
-                '<p><strong>Author:</strong> ' + book.author + '</p>' +
-                '<p><strong>ISBN:</strong> ' + book.isbn + '</p>';
+                '<p><strong>Author:</strong> ' + book.author + '</p>';
                 
             if (book.publisher) {
                 html += '<p><strong>Publisher:</strong> ' + book.publisher + '</p>';
@@ -377,13 +809,16 @@ HTML_TEMPLATE = '''
             html += '</div></div>';
             
             if (saved) {
-                html += '<p>🎉 Check your Notion database!</p>';
+                html += '<p style="margin-top: 1rem; text-align: center; color: var(--muted-foreground); font-size: 0.875rem;">Check your Notion database to see the book!</p>';
             }
             
             html += '</div>';
             
             results.innerHTML = html;
         }
+
+        // Clean up scanner when page unloads
+        window.addEventListener('beforeunload', stopScanner);
     </script>
 </body>
 </html>
@@ -468,7 +903,7 @@ def is_notion_configured():
             NOTION_DATABASE_ID and NOTION_DATABASE_ID not in ['', 'dummy_database_id'])
 
 def add_book_to_notion(book_data):
-    """Add book to Notion database - minimal working version"""
+    """Add book to Notion database - working version with all columns"""
     if not is_notion_configured():
         logger.error("Notion not configured")
         return None
@@ -519,7 +954,7 @@ def add_book_to_notion(book_data):
             "properties": properties
         }
         
-        logger.info(f"Adding book with minimal properties: {book_data['title']}")
+        logger.info(f"Adding book with all properties: {book_data['title']}")
         logger.info(f"Database ID: {NOTION_DATABASE_ID}")
         
         response = requests.post(url, headers=headers, json=payload, timeout=15)
@@ -557,107 +992,6 @@ def parse_date(date_string):
         return None
     except Exception:
         return None
-
-@app.route('/debug-notion')
-def debug_notion():
-    """Debug: Check Notion configuration and test simple API call"""
-    try:
-        result = {
-            "token_configured": bool(NOTION_TOKEN and NOTION_TOKEN not in ['', 'dummy_token']),
-            "database_configured": bool(NOTION_DATABASE_ID and NOTION_DATABASE_ID not in ['', 'dummy_database_id']),
-            "token_starts_with": NOTION_TOKEN[:10] if NOTION_TOKEN else "None",
-            "database_id": NOTION_DATABASE_ID if NOTION_DATABASE_ID else "None",
-            "database_id_length": len(NOTION_DATABASE_ID) if NOTION_DATABASE_ID else 0
-        }
-        
-        # Test simple database access
-        if NOTION_TOKEN and NOTION_DATABASE_ID:
-            headers = {
-                "Authorization": f"Bearer {NOTION_TOKEN}",
-                "Notion-Version": "2022-06-28"
-            }
-            
-            try:
-                # Try to get database info
-                url = f"https://api.notion.com/v1/databases/{NOTION_DATABASE_ID}"
-                response = requests.get(url, headers=headers, timeout=10)
-                
-                result["api_test"] = {
-                    "status_code": response.status_code,
-                    "success": response.status_code == 200,
-                    "error": response.json() if response.status_code != 200 else None
-                }
-                
-                if response.status_code == 200:
-                    db_info = response.json()
-                    result["database_info"] = {
-                        "title": db_info.get("title", [{}])[0].get("plain_text", "Unknown"),
-                        "properties": list(db_info.get("properties", {}).keys())
-                    }
-                
-            except Exception as e:
-                result["api_test"] = {
-                    "success": False,
-                    "error": str(e)
-                }
-        
-        return jsonify(result)
-        
-    except Exception as e:
-        return jsonify({
-            "status": "error", 
-            "error": str(e)
-        })
-
-@app.route('/debug-databases')
-def debug_databases():
-    """Debug: Test database access with different ID formats"""
-    try:
-        headers = {
-            "Authorization": f"Bearer {NOTION_TOKEN}",
-            "Notion-Version": "2022-06-28"
-        }
-        
-        # Test different possible ID formats
-        test_ids = [
-            "25e000024da7805f9506d68b013290da",  # Original
-            "25e00002-4da7-805f-9506-d68b013290da",  # From error message
-            "25e00002-4da7-805f-9506-d68b013290da"  # Alternative format
-        ]
-        
-        results = {}
-        
-        for test_id in test_ids:
-            try:
-                url = f"https://api.notion.com/v1/databases/{test_id}"
-                response = requests.get(url, headers=headers, timeout=10)
-                
-                results[test_id] = {
-                    "status_code": response.status_code,
-                    "accessible": response.status_code == 200,
-                    "error": response.json() if response.status_code != 200 else "Success"
-                }
-                
-            except Exception as e:
-                results[test_id] = {
-                    "status_code": "error",
-                    "accessible": False,
-                    "error": str(e)
-                }
-        
-        return jsonify({
-            "status": "testing_complete",
-            "token_configured": bool(NOTION_TOKEN and NOTION_TOKEN != 'dummy_token'),
-            "test_results": results,
-            "current_database_id": NOTION_DATABASE_ID
-        })
-        
-    except Exception as e:
-        return jsonify({
-            "status": "error", 
-            "error": str(e),
-            "token_configured": bool(NOTION_TOKEN and NOTION_TOKEN != 'dummy_token')
-        })
 
 @app.route('/health')
 def health_check():
