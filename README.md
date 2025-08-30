@@ -1,232 +1,276 @@
-# 📚 Book Scanner - Notion Integration
+# 📚 Book Scanner & Notion Library Manager
 
-A web application that allows you to scan book barcodes or manually enter ISBNs to automatically populate a Notion database with complete book information from Google Books API.
+A modern web application that allows you to scan book barcodes or enter ISBNs to automatically add books to your Notion library database. Built with Flask and featuring a mobile-friendly interface with barcode scanning capabilities.
 
 ## ✨ Features
 
-- 📱 **Barcode scanning** using phone camera
-- 📝 **Manual ISBN entry** for any device
-- 🔄 **Automatic data population** from Google Books API
-- 📊 **Complete book information** in your Notion database
-- 💻 **Multi-device support** - works everywhere
-- 🎨 **Beautiful interface** with book cover images
-- 📚 **Personal library management** in Notion
+### 🔍 **Multiple Book Input Methods**
+- **Barcode Scanning**: Use your device camera to scan book barcodes
+- **ISBN Lookup**: Manually enter ISBN numbers for book lookup
+- **Manual Entry**: Add books manually when automated lookup fails
 
-## 🎯 What Gets Populated Automatically
+### 📖 **Comprehensive Book Data**
+- **Google Books Integration**: Automatic book data retrieval
+- **Rich Information**: Title, Author, Publisher, Publication Date, Page Count, Categories, Description
+- **Cover Images**: Dual cover image support (URL + Files & media)
 
-When you scan or enter a book, these fields are automatically filled:
+### 🗂️ **Notion Integration** 
+- **Automatic Database Population**: Seamlessly adds books to your Notion database
+- **Multiple Cover Formats**: Both URL and Files & media cover image types
+- **Gallery View Support**: Cover images display perfectly in Notion's Gallery view
+- **Error Handling**: Graceful handling of API failures and network issues
 
-- **BookName** (Title) - Book title
-- **ISBN** (Text) - ISBN number
-- **Author** (Text) - Author names
-- **Publisher** (Text) - Publishing company
-- **Page Count** (Number) - Number of pages
-- **Cover image** (URL) - Book cover image
-- **Published Date** (Date) - Publication date
-- **Descriptions** (Text) - Book summary/description
-- **Category** (Text) - Book genre/topics
+### 📱 **Modern User Experience**
+- **Responsive Design**: Works on desktop, tablet, and mobile
+- **Intuitive Interface**: Clean, Figma-inspired design
+- **Real-time Feedback**: Loading states and progress indicators
+- **Smart Navigation**: Seamless transitions between different input methods
 
 ## 🚀 Quick Start
 
-### 1. Set Up Notion Database
+### Prerequisites
+- Python 3.7+
+- Google Cloud Platform account (for deployment)
+- Notion account with API access
+- Google Books API key (optional but recommended)
 
-Create a new Notion database with these **exact column names and types**:
-
-| Column Name | Property Type | Purpose |
-|-------------|---------------|---------|
-| BookName | Title | Book title (primary column) |
-| ISBN | Text | ISBN number |
-| Author | Text | Book author(s) |
-| Publisher | Text | Publishing company |
-| Page Count | Number | Number of pages |
-| Cover image | URL | Book cover image |
-| Published Date | Date | Publication date |
-| Descriptions | Text | Book description |
-| Category | Text | Book genres/topics |
-
-⚠️ **Important**: Column names are case-sensitive and must include spaces exactly as shown (e.g., "Page Count" not "PageCount").
-
-### 2. Create Notion Integration
-
-1. Go to [Notion Integrations](https://www.notion.so/my-integrations)
-2. Click "New Integration"
-3. Name it "Book Scanner"
-4. Copy the **Internal Integration Token** (starts with `ntn_`)
-5. In your database, click "..." → "Connections" → Add your integration
-
-### 3. Get Your Database ID
-
-1. Go to your Notion database
-2. Copy the URL from your browser
-3. Extract the database ID from the URL:
-   - URL format: `https://www.notion.so/workspace/DATABASE_ID?v=view_id`
-   - The DATABASE_ID is the 32-character string before `?v=`
-
-### 4. Deploy to Google Cloud Run
-
-#### Option A: Deploy from GitHub (Recommended)
-
-1. Fork this repository
-2. Go to Google Cloud Run
-3. Click "CREATE SERVICE"
-4. Select "Deploy from source repository"
-5. Connect your GitHub account and select this repository
-6. Deploy with default settings
-
-#### Option B: Clone and Deploy
+### Environment Variables
+Set up the following environment variables:
 
 ```bash
-# Clone the repository
-git clone https://github.com/YOUR-USERNAME/notion-book-scanner.git
-cd notion-book-scanner
-
-# Deploy to Cloud Run
-gcloud run deploy book-scanner \
-  --source . \
-  --platform managed \
-  --region us-central1 \
-  --allow-unauthenticated
+NOTION_TOKEN=your_notion_integration_token
+NOTION_DATABASE_ID=your_notion_database_id
+GOOGLE_BOOKS_API_KEY=your_google_books_api_key  # Optional
+PORT=8080  # Optional, defaults to 8080
 ```
 
-### 5. Set Environment Variables
+### Local Development
 
-After deployment, configure these environment variables in Cloud Run:
+1. **Clone the repository**
+   ```bash
+   git clone your-repo-url
+   cd book-scanner
+   ```
 
-1. Go to your Cloud Run service
-2. Click "EDIT & DEPLOY NEW REVISION"
-3. Go to "Variables & Secrets" tab
-4. Add these variables:
+2. **Install dependencies**
+   ```bash
+   pip install flask requests
+   ```
 
-- `NOTION_TOKEN` - Your Notion integration token (starts with `ntn_`)
-- `NOTION_DATABASE_ID` - Your 32-character database ID
-- `GOOGLE_BOOKS_API_KEY` - Optional, for higher rate limits
+3. **Set environment variables**
+   ```bash
+   export NOTION_TOKEN="your_token_here"
+   export NOTION_DATABASE_ID="your_database_id_here"
+   export GOOGLE_BOOKS_API_KEY="your_api_key_here"
+   ```
 
-**To get Google Books API key (optional):**
-1. Go to [Google Cloud Console](https://console.developers.google.com/)
-2. Create project and enable "Books API"
-3. Create credentials → API Key
+4. **Run the application**
+   ```bash
+   python main.py
+   ```
+
+5. **Open your browser**
+   ```
+   http://localhost:8080
+   ```
+
+## 🔧 Notion Database Setup
+
+### Required Database Properties
+
+Create a Notion database with these properties:
+
+| Property Name | Property Type | Description |
+|---------------|---------------|-------------|
+| `BookName` | Title | Book title (primary key) |
+| `Author` | Rich text | Book author(s) |
+| `ISBN` | Rich text | ISBN number |
+| `Publisher` | Rich text | Publishing company |
+| `Published Date` | Date | Publication date |
+| `Page Count` | Number | Number of pages |
+| `Category` | Rich text | Book categories/genres |
+| `Descriptions` | Rich text | Book description |
+| `Cover image` | URL | Cover image URL |
+| `Cover PNG` | Files & media | Cover image file attachment |
+
+### Gallery View Setup
+
+To display cover images in Notion's Gallery view:
+
+1. **Switch to Gallery view** in your database
+2. **Click the "Gallery" dropdown** at the top
+3. **Select "Properties"**
+4. **Under "Card preview"**, choose `Cover PNG`
+5. **Your books will now display with cover images!**
+
+### Getting Your Notion Credentials
+
+#### 1. Create a Notion Integration
+1. Go to [Notion Integrations](https://www.notion.so/my-integrations)
+2. Click **"+ New integration"**
+3. Name it **"Book Scanner"**
+4. Select your workspace
+5. Copy the **Internal Integration Token** → This is your `NOTION_TOKEN`
+
+#### 2. Get Database ID
+1. Open your book database in Notion
+2. Copy the URL - it looks like: `https://notion.so/workspace/DATABASE_ID?v=...`
+3. Extract the 32-character `DATABASE_ID` → This is your `NOTION_DATABASE_ID`
+
+#### 3. Share Database with Integration
+1. In your database, click **"Share"**
+2. **"Invite"** → Search for your integration name
+3. **Select your integration** and click "Invite"
+
+## 🌐 Google Cloud Deployment
+
+### Deploy to Google Cloud Run
+
+1. **Enable required APIs**
+   ```bash
+   gcloud services enable run.googleapis.com
+   gcloud services enable cloudbuild.googleapis.com
+   ```
+
+2. **Deploy the application**
+   ```bash
+   gcloud run deploy book-scanner \
+     --source . \
+     --platform managed \
+     --region us-central1 \
+     --allow-unauthenticated \
+     --set-env-vars NOTION_TOKEN=your_token,NOTION_DATABASE_ID=your_db_id,GOOGLE_BOOKS_API_KEY=your_api_key
+   ```
+
+3. **Access your deployed app**
+   - Google Cloud will provide a URL like: `https://book-scanner-xxx-uc.a.run.app`
+
+### Continuous Deployment with GitHub
+
+1. **Connect your repository** to Google Cloud Build
+2. **Set up environment variables** in Cloud Run
+3. **Push changes** to trigger automatic deployments
 
 ## 📱 How to Use
 
-### Web Interface
-1. Visit your deployed Cloud Run URL
-2. **Scan a barcode**: Click "📷 Scan Barcode with Camera"
-3. **Manual entry**: Type ISBN in the text field
-4. **Add to library**: Click "📚 Add to Notion Library"
-5. **Check your Notion database** - the book appears instantly!
+### Method 1: Barcode Scanning
+1. **Click "Scan Barcode"**
+2. **Allow camera permissions**
+3. **Point camera at book barcode**
+4. **Book automatically detected and looked up**
+5. **Click "Add to Notion Library"** to save
 
-### Mobile Usage
-- Works great on phones and tablets
-- Camera permission required for barcode scanning
-- Fallback to manual entry if camera unavailable
+### Method 2: ISBN Entry
+1. **Click "Enter ISBN"**
+2. **Type the 10 or 13-digit ISBN**
+3. **Click "Look Up Book"** or press Enter
+4. **Review book details**
+5. **Click "Add to Notion Library"** to save
 
-## 🎯 Reading Workflow
+### Method 3: Manual Entry
+1. **If book lookup fails**, click **"Add Book Manually"**
+2. **Fill in book details** (Title and Author required)
+3. **Add optional information** (Publisher, Date, Pages, etc.)
+4. **Click "Add Book to Notion"** to save
 
-1. **Discovery**: Scan books at bookstores, libraries, or your home collection
-2. **Automatic cataloging**: All book information populates instantly
-3. **Personal management**: Add your own columns in Notion for:
-   - Reading status (Want to Read, Reading, Read, DNF)
-   - Start and finish dates
-   - Personal rating and notes
-   - Reading progress tracking
-   - Favorite books
+## 🛠️ API Endpoints
 
-## 📊 Optional Personal Tracking Columns
+### `GET /`
+Serves the main web interface
 
-You can add these columns to your Notion database for personal reading management:
+### `POST /test-isbn`
+Tests Google Books API and optionally saves to Notion
 
-| Column Name | Property Type | Purpose |
-|-------------|---------------|---------|
-| Status | Select | New, Reading, Read, On Hold, DNF |
-| ReadStatus | Select | Want to Read, Reading, Read, DNF |
-| StartDate | Date | When you started reading |
-| FinishDate | Date | When you finished |
-| Favorite | Checkbox | Mark favorite books |
-| Currentpage | Number | Current page progress |
-| MyRate | Number | Your personal rating (1-5 or 1-10) |
-| ReadLog | Text | Your reading notes and thoughts |
-| My Progress | Number | Reading percentage |
-
-## 🔧 Technical Details
-
-### Requirements
-- Python 3.11+
-- Flask web framework
-- Google Books API (free)
-- Notion API integration
-- Google Cloud Run (free tier available)
-
-### Dependencies
-```
-Flask==2.3.3
-requests==2.31.0
-gunicorn==21.2.0
+**Request Body:**
+```json
+{
+  "isbn": "9780134685991",
+  "save_to_notion": true
+}
 ```
 
-### Architecture
-- **Frontend**: HTML/CSS/JavaScript with camera barcode scanning
-- **Backend**: Python Flask application
-- **APIs**: Google Books API for book data, Notion API for database
-- **Hosting**: Google Cloud Run (serverless)
+### `POST /add-manual-book`
+Adds manually entered book directly to Notion
 
-## 🐛 Troubleshooting
+**Request Body:**
+```json
+{
+  "title": "Book Title",
+  "author": "Author Name",
+  "isbn": "1234567890",
+  "publisher": "Publisher Name",
+  "published_date": "2023",
+  "page_count": 300,
+  "categories": "Fiction",
+  "description": "Book description"
+}
+```
+
+### `GET /health`
+Health check endpoint
+
+## 🔍 Troubleshooting
 
 ### Common Issues
 
-**"Book not found":**
-- Verify ISBN is correct (10 or 13 digits)
-- Some older books may not be in Google Books database
-- Try manual search with title/author
+#### **Barcode Scanner Not Working**
+- **Check camera permissions** in your browser
+- **Use HTTPS** (required for camera access)
+- **Try different lighting conditions**
+- **Use manual ISBN entry** as backup
 
-**"Notion not configured":**
-- Check environment variables are set correctly
-- Verify integration has access to database
-- Confirm database ID is correct (32 characters)
+#### **Books Not Found**
+- **Verify ISBN** is correct (10 or 13 digits)
+- **Try different ISBN** if book has multiple
+- **Use manual entry** for books not in Google Books
 
-**Camera not working:**
-- Use HTTPS (required for camera access)
-- Grant camera permissions in browser
-- Try manual ISBN entry as backup
+#### **Notion Integration Errors**
+- **Check environment variables** are set correctly
+- **Verify integration permissions** in Notion
+- **Ensure database is shared** with your integration
+- **Check database property names** match exactly
 
-**Database errors:**
-- Ensure all column names match exactly (case-sensitive)
-- Column names must include spaces: "Page Count" not "PageCount"
-- Verify column types match requirements
+#### **Cover Images Not Showing in Gallery View**
+- **Use `Cover PNG`** (Files & media) not `Cover image` (URL)
+- **Set Gallery card preview** to `Cover PNG`
+- **Check image URLs** are accessible
 
-### Database Column Troubleshooting
-- **BookName**: Must be "Title" property type (first column)
-- **Page Count**: Must be "Number" type with exact spacing
-- **Published Date**: Must be "Date" type with exact spacing
-- **Cover image**: Must be "URL" type with exact spacing
+### Debug Mode
 
-## 🔒 Security & Privacy
-
-- **No personal data stored** in the application
-- **Your books remain private** in your Notion workspace
-- **Environment variables protect** your API keys
-- **HTTPS required** for camera functionality
+Enable debug logging by setting:
+```python
+app.run(host='0.0.0.0', port=port, debug=True)
+```
 
 ## 🤝 Contributing
 
-Contributions welcome! Please:
-- Test thoroughly before submitting
-- Update documentation for new features
-- Follow existing code style
-- Add clear commit messages
+1. **Fork the repository**
+2. **Create a feature branch** (`git checkout -b feature/amazing-feature`)
+3. **Commit your changes** (`git commit -m 'Add amazing feature'`)
+4. **Push to the branch** (`git push origin feature/amazing-feature`)
+5. **Open a Pull Request**
 
 ## 📄 License
 
-MIT License - feel free to use and modify!
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 🎉 Acknowledgments
+## 🙏 Acknowledgments
 
-- [Notion API](https://developers.notion.com/) for database integration
-- [Google Books API](https://developers.google.com/books) for book data
-- [QuaggaJS](https://serratus.github.io/quaggaJS/) for barcode scanning
-- [Google Cloud Run](https://cloud.google.com/run) for hosting
+- **Google Books API** for book data
+- **Notion API** for database integration
+- **Quagga.js** for barcode scanning
+- **Flask** for the web framework
+
+## 📞 Support
+
+If you encounter any issues:
+
+1. **Check the troubleshooting section** above
+2. **Review your environment variables**
+3. **Check browser console** for JavaScript errors
+4. **Verify Notion database setup**
+5. **Open an issue** with detailed error information
 
 ---
 
-**Happy Reading! 📚✨**
-
-*Built with ❤️ for book lovers who want to digitize and organize their libraries.*
+**Happy reading!** 📖✨
