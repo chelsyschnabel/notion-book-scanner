@@ -558,6 +558,56 @@ def parse_date(date_string):
     except Exception:
         return None
 
+@app.route('/debug-databases')
+def debug_databases():
+    """Debug: Test database access with different ID formats"""
+    try:
+        headers = {
+            "Authorization": f"Bearer {NOTION_TOKEN}",
+            "Notion-Version": "2022-06-28"
+        }
+        
+        # Test different possible ID formats
+        test_ids = [
+            "25e000024da7805f9506d68b013290da",  # Original
+            "25e00002-4da7-805f-9506-d68b013290da",  # From error message
+            "25e00002-4da7-805f-9506-d68b013290da"  # Alternative format
+        ]
+        
+        results = {}
+        
+        for test_id in test_ids:
+            try:
+                url = f"https://api.notion.com/v1/databases/{test_id}"
+                response = requests.get(url, headers=headers, timeout=10)
+                
+                results[test_id] = {
+                    "status_code": response.status_code,
+                    "accessible": response.status_code == 200,
+                    "error": response.json() if response.status_code != 200 else "Success"
+                }
+                
+            except Exception as e:
+                results[test_id] = {
+                    "status_code": "error",
+                    "accessible": False,
+                    "error": str(e)
+                }
+        
+        return jsonify({
+            "status": "testing_complete",
+            "token_configured": bool(NOTION_TOKEN and NOTION_TOKEN != 'dummy_token'),
+            "test_results": results,
+            "current_database_id": NOTION_DATABASE_ID
+        })
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error", 
+            "error": str(e),
+            "token_configured": bool(NOTION_TOKEN and NOTION_TOKEN != 'dummy_token')
+        })
+
 @app.route('/health')
 def health_check():
     return jsonify({'status': 'healthy'})
@@ -565,18 +615,3 @@ def health_check():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port, debug=False)
-
-@app.route('/debug-databases')
-def debug_databases():
-    """Debug: List all databases accessible to integration"""
-    try:
-        headers = {
-            "Authorization": f"Bearer {NOTION_TOKEN}",
-            "Notion-Version": "2022-06-28"
-        }
-        
-        response = requests.get("https://api.notion.com/v1/databases", headers=headers)
-        return jsonify(response.json())
-        
-    except Exception as e:
-        return jsonify({"error": str(e)})
