@@ -492,31 +492,19 @@ def add_book_to_notion(book_data):
         if book_data.get('publisher'):
             properties["Publisher"] = {"rich_text": [{"text": {"content": book_data['publisher']}}]}
         
-        # Add Page Count (working now with correct spacing)
+        # Add Page Count (working)
         if book_data.get('page_count'):
             properties["Page Count"] = {"number": book_data['page_count']}
         
-        # Add Cover image 
+        # Add Cover image (working)
         if book_data.get('cover_image'):
             properties["Cover image"] = {"url": book_data['cover_image']}
         
-        # Add Published Date (with exact spacing)
+        # Test ONLY Published Date next
         if book_data.get('published_date'):
             parsed_date = parse_date(book_data['published_date'])
             if parsed_date:
                 properties["Published Date"] = {"date": {"start": parsed_date}}
-        
-        # Add Descriptions (plural, exact spelling)
-        if book_data.get('description'):
-            properties["Descriptions"] = {"rich_text": [{"text": {"content": book_data['description']}}]}
-        
-        # Add Category
-        if book_data.get('categories'):
-            properties["Category"] = {"rich_text": [{"text": {"content": book_data['categories']}}]}
-        
-        # Add Language
-        if book_data.get('language'):
-            properties["Language"] = {"rich_text": [{"text": {"content": book_data['language']}}]}
         
         payload = {
             "parent": {"database_id": NOTION_DATABASE_ID},
