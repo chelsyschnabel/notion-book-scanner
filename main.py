@@ -488,6 +488,21 @@ def add_book_to_notion(book_data):
             "Author": {"rich_text": [{"text": {"content": book_data['author']}}]}
         }
         
+        # Add these additional columns if they exist in your database
+        if book_data.get('publisher'):
+            properties["Publisher"] = {"rich_text": [{"text": {"content": book_data['publisher']}}]}
+        
+        if book_data.get('published_date'):
+            parsed_date = parse_date(book_data['published_date'])
+            if parsed_date:
+                properties["Published Date"] = {"date": {"start": parsed_date}}
+        
+        if book_data.get('page_count'):
+            properties["Page Count"] = {"number": book_data['page_count']}
+        
+        if book_data.get('cover_image'):
+            properties["Cover image"] = {"url": book_data['cover_image']}
+        
         payload = {
             "parent": {"database_id": NOTION_DATABASE_ID},
             "properties": properties
