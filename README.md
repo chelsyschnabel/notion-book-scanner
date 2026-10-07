@@ -1,3 +1,5 @@
+# 10/26 Update: This is retired and no longer maintained.
+
 # 📚 Book Scanner & Notion Library Manager
 
 A modern web application that allows you to scan book barcodes or enter ISBNs to automatically add books to your Notion library database. Built with Flask and featuring a mobile-friendly interface with barcode scanning capabilities.
